@@ -97,7 +97,6 @@ declare
   v_context record;
   v_item jsonb;
   v_menu_item record;
-  v_protein_option record;
   v_order_id uuid;
   v_order_number text;
   v_subtotal numeric := 0;
@@ -105,6 +104,7 @@ declare
   v_total numeric := 0;
   v_quantity integer;
   v_protein_choice text;
+  v_protein_price_adjustment numeric := 0;
   v_line_total numeric;
   v_sequence integer;
   v_item_count integer := 0;
@@ -159,6 +159,7 @@ begin
     from jsonb_array_elements(p_items) as json_items(value)
   loop
     v_item_count := v_item_count + 1;
+    v_protein_price_adjustment := 0;
 
     if coalesce(v_item ->> 'menu_item_id', '') = '' then
       raise exception 'Each order item requires menu_item_id';
@@ -203,10 +204,8 @@ begin
     end if;
 
     if v_menu_item.requires_protein then
-      select
-        mpo.name,
-        mpo.price_adjustment
-      into v_protein_option
+      select mpo.price_adjustment
+      into v_protein_price_adjustment
       from public.menu_item_protein_options as mpo
       where mpo.menu_item_id = v_menu_item.id
         and mpo.name = v_protein_choice
@@ -216,15 +215,11 @@ begin
       if not found then
         raise exception 'Invalid protein choice for %', v_menu_item.name;
       end if;
-    else
-      v_protein_option.price_adjustment := 0;
     end if;
 
     v_line_total := round(
-      (
-        v_menu_item.base_price
-        + coalesce(v_protein_option.price_adjustment, 0)
-      ) * v_quantity,
+      (v_menu_item.base_price + coalesce(v_protein_price_adjustment, 0))
+      * v_quantity,
       2
     );
 
@@ -296,6 +291,7 @@ begin
     select json_items.value
     from jsonb_array_elements(p_items) as json_items(value)
   loop
+    v_protein_price_adjustment := 0;
     v_quantity := (v_item ->> 'quantity')::integer;
 
     select
@@ -314,24 +310,18 @@ begin
     v_protein_choice := nullif(trim(v_item ->> 'protein_choice'), '');
 
     if v_menu_item.requires_protein then
-      select
-        mpo.name,
-        mpo.price_adjustment
-      into v_protein_option
+      select mpo.price_adjustment
+      into v_protein_price_adjustment
       from public.menu_item_protein_options as mpo
       where mpo.menu_item_id = v_menu_item.id
         and mpo.name = v_protein_choice
         and mpo.is_active = true
       limit 1;
-    else
-      v_protein_option.price_adjustment := 0;
     end if;
 
     v_line_total := round(
-      (
-        v_menu_item.base_price
-        + coalesce(v_protein_option.price_adjustment, 0)
-      ) * v_quantity,
+      (v_menu_item.base_price + coalesce(v_protein_price_adjustment, 0))
+      * v_quantity,
       2
     );
 
@@ -349,8 +339,7 @@ begin
       v_menu_item.id,
       v_menu_item.name,
       round(
-        v_menu_item.base_price
-        + coalesce(v_protein_option.price_adjustment, 0),
+        v_menu_item.base_price + coalesce(v_protein_price_adjustment, 0),
         2
       ),
       v_quantity,
