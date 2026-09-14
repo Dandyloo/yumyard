@@ -1,0 +1,131 @@
+export const MENU_CATEGORIES = [
+  { id: "attieke-packs", name: "Attiéké Packs" },
+  { id: "banku-packs", name: "Banku Packs" },
+  { id: "extras", name: "Extras" },
+  { id: "drinks", name: "Drinks" },
+];
+
+export const MENU_ITEMS = [
+  {
+    id: "attieke-loaded-pack",
+    categoryId: "attieke-packs",
+    name: "Attiéké Loaded Pack",
+    price: 65,
+    description:
+      "Fried egg, fried plantain, half tilapia or chicken, sautéed vegetables and chili sauce.",
+    requiresProtein: true,
+    proteinOptions: ["Tilapia", "Chicken"],
+    badge: "Popular",
+  },
+  {
+    id: "attieke-fully-loaded-pack",
+    categoryId: "attieke-packs",
+    name: "Attiéké Fully Loaded Pack",
+    price: 95,
+    description:
+      "Fried egg, fried plantain, full tilapia or chicken, sautéed vegetables and chili sauce.",
+    requiresProtein: true,
+    proteinOptions: ["Tilapia", "Chicken"],
+    badge: "Best value",
+  },
+  {
+    id: "attieke-overloaded-pack",
+    categoryId: "attieke-packs",
+    name: "Attiéké Overloaded Pack",
+    price: 120,
+    description:
+      "More attiéké, fried egg, fried plantain, extra-big full tilapia or chicken, sautéed vegetables and chili sauce.",
+    requiresProtein: true,
+    proteinOptions: ["Tilapia", "Chicken"],
+    badge: "Signature",
+  },
+  {
+    id: "banku-loaded-pack",
+    categoryId: "banku-packs",
+    name: "Banku Loaded Pack",
+    price: 55,
+    description:
+      "Two banku balls, half tilapia or chicken, fried egg, shito, sautéed vegetables and pepper sauce.",
+    requiresProtein: true,
+    proteinOptions: ["Tilapia", "Chicken"],
+    badge: "Popular",
+  },
+  {
+    id: "banku-fully-loaded-pack",
+    categoryId: "banku-packs",
+    name: "Banku Fully Loaded Pack",
+    price: 80,
+    description:
+      "Two banku balls, full tilapia or chicken, fried egg, shito, sautéed vegetables and pepper sauce.",
+    requiresProtein: true,
+    proteinOptions: ["Tilapia", "Chicken"],
+    badge: "Best value",
+  },
+  {
+    id: "banku-overloaded-pack",
+    categoryId: "banku-packs",
+    name: "Banku Overloaded Pack",
+    price: 120,
+    description:
+      "Three banku balls, extra-big full tilapia or chicken, fried egg, shito and sautéed vegetables.",
+    requiresProtein: true,
+    proteinOptions: ["Tilapia", "Chicken"],
+    badge: "Signature",
+  },
+  {
+    id: "extra-fried-plantain",
+    categoryId: "extras",
+    name: "Fried Plantain",
+    price: 10,
+    description: "Extra fried plantain portion.",
+  },
+  {
+    id: "extra-fried-egg",
+    categoryId: "extras",
+    name: "Fried Egg",
+    price: 5,
+    description: "One extra fried egg.",
+  },
+  {
+    id: "extra-attieke",
+    categoryId: "extras",
+    name: "Attiéké",
+    price: 35,
+    description: "Standalone attiéké serving.",
+  },
+  {
+    id: "extra-avocado",
+    categoryId: "extras",
+    name: "Avocado",
+    price: 5,
+    description: "Fresh avocado add-on.",
+  },
+  {
+    id: "extra-banku",
+    categoryId: "extras",
+    name: "Banku",
+    price: 5,
+    description: "One extra banku ball.",
+  },
+  {
+    id: "extra-sausage",
+    categoryId: "extras",
+    name: "Sausage",
+    price: 5,
+    description: "One sausage add-on.",
+  },
+  {
+    id: "drink-tigernut-juice",
+    categoryId: "drinks",
+    name: "Tigernut Juice",
+    price: 20,
+    description: "Fresh tigernut juice.",
+  },
+  {
+    id: "drink-pineapple-juice",
+    categoryId: "drinks",
+    name: "Pineapple Juice",
+    price: 15,
+    description: "Fresh pineapple juice.",
+  },
+];
