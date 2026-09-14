@@ -1,4 +1,5 @@
 export const MENU_CATEGORIES = [
+  { id: "all-items", name: "All items" },
   { id: "attieke-packs", name: "Attiéké Packs" },
   { id: "banku-packs", name: "Banku Packs" },
   { id: "extras", name: "Extras" },
@@ -15,7 +16,7 @@ export const MENU_ITEMS = [
       "Fried egg, fried plantain, half tilapia or chicken, sautéed vegetables and chili sauce.",
     requiresProtein: true,
     proteinOptions: ["Tilapia", "Chicken"],
-    badge: "Popular",
+    image: "",
   },
   {
     id: "attieke-fully-loaded-pack",
@@ -26,7 +27,7 @@ export const MENU_ITEMS = [
       "Fried egg, fried plantain, full tilapia or chicken, sautéed vegetables and chili sauce.",
     requiresProtein: true,
     proteinOptions: ["Tilapia", "Chicken"],
-    badge: "Best value",
+    image: "",
   },
   {
     id: "attieke-overloaded-pack",
@@ -37,7 +38,7 @@ export const MENU_ITEMS = [
       "More attiéké, fried egg, fried plantain, extra-big full tilapia or chicken, sautéed vegetables and chili sauce.",
     requiresProtein: true,
     proteinOptions: ["Tilapia", "Chicken"],
-    badge: "Signature",
+    image: "",
   },
   {
     id: "banku-loaded-pack",
@@ -48,7 +49,7 @@ export const MENU_ITEMS = [
       "Two banku balls, half tilapia or chicken, fried egg, shito, sautéed vegetables and pepper sauce.",
     requiresProtein: true,
     proteinOptions: ["Tilapia", "Chicken"],
-    badge: "Popular",
+    image: "",
   },
   {
     id: "banku-fully-loaded-pack",
@@ -59,7 +60,7 @@ export const MENU_ITEMS = [
       "Two banku balls, full tilapia or chicken, fried egg, shito, sautéed vegetables and pepper sauce.",
     requiresProtein: true,
     proteinOptions: ["Tilapia", "Chicken"],
-    badge: "Best value",
+    image: "",
   },
   {
     id: "banku-overloaded-pack",
@@ -70,7 +71,7 @@ export const MENU_ITEMS = [
       "Three banku balls, extra-big full tilapia or chicken, fried egg, shito and sautéed vegetables.",
     requiresProtein: true,
     proteinOptions: ["Tilapia", "Chicken"],
-    badge: "Signature",
+    image: "",
   },
   {
     id: "extra-fried-plantain",
@@ -78,6 +79,7 @@ export const MENU_ITEMS = [
     name: "Fried Plantain",
     price: 10,
     description: "Extra fried plantain portion.",
+    image: "",
   },
   {
     id: "extra-fried-egg",
@@ -85,6 +87,7 @@ export const MENU_ITEMS = [
     name: "Fried Egg",
     price: 5,
     description: "One extra fried egg.",
+    image: "",
   },
   {
     id: "extra-attieke",
@@ -92,6 +95,7 @@ export const MENU_ITEMS = [
     name: "Attiéké",
     price: 35,
     description: "Standalone attiéké serving.",
+    image: "",
   },
   {
     id: "extra-avocado",
@@ -99,6 +103,7 @@ export const MENU_ITEMS = [
     name: "Avocado",
     price: 5,
     description: "Fresh avocado add-on.",
+    image: "",
   },
   {
     id: "extra-banku",
@@ -106,6 +111,7 @@ export const MENU_ITEMS = [
     name: "Banku",
     price: 5,
     description: "One extra banku ball.",
+    image: "",
   },
   {
     id: "extra-sausage",
@@ -113,6 +119,7 @@ export const MENU_ITEMS = [
     name: "Sausage",
     price: 5,
     description: "One sausage add-on.",
+    image: "",
   },
   {
     id: "drink-tigernut-juice",
@@ -120,6 +127,7 @@ export const MENU_ITEMS = [
     name: "Tigernut Juice",
     price: 20,
     description: "Fresh tigernut juice.",
+    image: "",
   },
   {
     id: "drink-pineapple-juice",
@@ -127,5 +135,6 @@ export const MENU_ITEMS = [
     name: "Pineapple Juice",
     price: 15,
     description: "Fresh pineapple juice.",
+    image: "",
   },
 ];
