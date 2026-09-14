@@ -828,6 +828,7 @@ declare
   v_cash_variance numeric;
   v_admin_session record;
   v_requires_admin_approval boolean := false;
+  v_approved_by_worker_id uuid := null;
 begin
   select *
   into v_context
@@ -903,6 +904,8 @@ begin
         or v_admin_session.worker_role not in ('owner', 'admin', 'manager') then
         raise exception 'A valid owner/admin session for this branch is required';
       end if;
+
+      v_approved_by_worker_id := v_admin_session.worker_id;
     end if;
   end if;
 
@@ -921,15 +924,15 @@ begin
     actual_cash_counted = v_actual_cash,
     cash_variance = v_cash_variance,
     open_order_count_at_close = v_open_order_count,
-    handover_order_count = case when v_open_order_count > 0 then v_open_order_count else 0 end,
+    handover_order_count = case
+      when v_open_order_count > 0 then v_open_order_count
+      else 0
+    end,
     closing_note = nullif(trim(p_closing_note), ''),
     requires_admin_approval = v_requires_admin_approval,
-    approved_by_worker_id = case
-      when v_requires_admin_approval then v_admin_session.worker_id
-      else null
-    end,
+    approved_by_worker_id = v_approved_by_worker_id,
     approved_at = case
-      when v_requires_admin_approval then now()
+      when v_approved_by_worker_id is not null then now()
       else null
     end,
     closed_by_session_id = v_context.session_id,
@@ -960,11 +963,7 @@ begin
       'cash_variance', v_cash_variance,
       'open_order_count', v_open_order_count,
       'requires_admin_approval', v_requires_admin_approval,
-      'approved_by_worker_id',
-        case
-          when v_requires_admin_approval then v_admin_session.worker_id
-          else null
-        end,
+      'approved_by_worker_id', v_approved_by_worker_id,
       'closing_note', nullif(trim(p_closing_note), '')
     )
   );
@@ -989,7 +988,10 @@ begin
     'actual_cash_counted', v_actual_cash,
     'cash_variance', v_cash_variance,
     'open_order_count_at_close', v_open_order_count,
-    'handover_order_count', case when v_open_order_count > 0 then v_open_order_count else 0 end,
+    'handover_order_count', case
+      when v_open_order_count > 0 then v_open_order_count
+      else 0
+    end,
     'requires_admin_approval', v_requires_admin_approval
   );
 end;
