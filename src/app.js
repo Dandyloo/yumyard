@@ -897,7 +897,6 @@ function renderProductCards(items) {
             <h2 class="product-name">${escapeHtml(item.name)}</h2>
             <div class="product-card-bottom">
               <strong>${formatMoney(item.price)}</strong>
-              <span class="add-product-icon">${icon("add")}</span>
             </div>
           </div>
         </button>

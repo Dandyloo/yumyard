@@ -1386,7 +1386,6 @@ select {
 .product-card-bottom {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   margin: 0;
   margin-top: auto;
@@ -1397,32 +1396,6 @@ select {
   color: var(--brand-maroon);
   font-size: 1.05rem;
   font-weight: 800;
-}
-
-.add-product-icon {
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: var(--brand-maroon);
-  color: #fff;
-  transition: transform 0.2s var(--ease-emphasis), background 0.2s var(--ease-standard);
-}
-
-.add-product-icon .icon {
-  width: 14px;
-  height: 14px;
-  color: #fff;
-}
-
-.product-card:hover .add-product-icon {
-  transform: scale(1.12);
-}
-
-.product-card:active .add-product-icon {
-  background: var(--brand-maroon-dark);
 }
 
 /* Category-specific price colors */
@@ -4218,34 +4191,69 @@ select {
      cramped phone) - only the workspace grid changes here. */
 }
 
-/* Login screen tuned for the same tablet-landscape range: an even
-   profile/PIN split and a keypad sized for a fingertip rather than a
-   mouse, still governed by the fr-based .pin-keypad rows above so it
-   can never force scrolling on an 800px-tall viewport. */
+/* Login screen tuned for the same tablet-landscape range. Every piece
+   here is sized DOWN from the >640px defaults (smaller logo, tighter
+   header, smaller padding/gaps) rather than up - an 800px-tall
+   viewport has less room to give, not more, and the previous version
+   of this rule made things bigger, which is exactly what pushed the
+   PIN pad into needing .pinpad-pane's scroll fallback. Equal-width
+   columns so the two panes read as a matched pair instead of one
+   looking wider than the other. */
 @media (min-width: 1024px) and (max-width: 1366px) and (max-height: 900px) and (orientation: landscape) {
   .login-screen {
-    padding: clamp(16px, 4vh, 48px) clamp(16px, 5vw, 64px);
+    padding: clamp(12px, 3vh, 32px) clamp(16px, 4vw, 48px);
+  }
+
+  .login-card--split {
+    padding: 18px 24px;
+  }
+
+  .login-split-header {
+    margin-bottom: 10px;
+  }
+
+  .login-split-header .login-logo {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 6px;
+  }
+
+  .login-split-header h1 {
+    font-size: 0.95rem;
   }
 
   .login-split {
-    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
-    gap: 20px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
   }
 
   .profile-pane,
   .pinpad-pane {
-    padding: 18px;
+    padding: 12px;
   }
 
   .profile-row {
-    min-height: 56px;
+    min-height: 48px;
+  }
+
+  .pinpad-pane {
+    gap: 8px;
+  }
+
+  .pinpad-identity strong {
+    font-size: 0.84rem;
+  }
+
+  .pin-dots {
+    padding: 2px 0;
   }
 
   .pin-keypad {
-    gap: 12px;
+    gap: 6px;
   }
 
-  .pin-key {
-    font-size: 1.15rem;
+  .login-help {
+    margin-top: 8px;
+    font-size: 0.62rem;
   }
 }
