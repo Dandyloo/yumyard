@@ -38,28 +38,6 @@ export async function openWorkerShift(sessionToken, openingCashActual, openingNo
   return Array.isArray(data) ? data[0] : data;
 }
 
-export async function getPendingHandoverOrders(sessionToken) {
-  const { data, error } = await supabase.rpc("get_pending_handover_orders", {
-    p_session_token: sessionToken,
-  });
-
-  throwRpcError(error);
-
-  return data || [];
-}
-
-export async function claimHandoverOrders(sessionToken, orderIds, acknowledgementNote = "") {
-  const { data, error } = await supabase.rpc("claim_handover_orders_for_shift", {
-    p_session_token: sessionToken,
-    p_order_ids: orderIds,
-    p_acknowledgement_note: acknowledgementNote || null,
-  });
-
-  throwRpcError(error);
-
-  return data;
-}
-
 export async function getShiftClosePreview(sessionToken) {
   const { data, error } = await supabase.rpc("get_shift_close_preview", {
     p_session_token: sessionToken,
@@ -74,13 +52,34 @@ export async function closeWorkerShift({
   sessionToken,
   actualCashCounted,
   closingNote = "",
-  adminSessionToken = null,
 }) {
   const { data, error } = await supabase.rpc("close_worker_shift", {
     p_session_token: sessionToken,
     p_actual_cash_counted: Number(actualCashCounted),
     p_closing_note: closingNote || null,
-    p_admin_session_token: adminSessionToken || null,
+  });
+
+  throwRpcError(error);
+
+  return data;
+}
+
+export async function getCloseDayPreview(sessionToken) {
+  const { data, error } = await supabase.rpc("get_close_day_preview", {
+    p_session_token: sessionToken,
+  });
+
+  throwRpcError(error);
+
+  return Array.isArray(data) ? data[0] : data;
+}
+
+export async function closeBusinessDay(sessionToken, { cashHandedOver, openingFloatForNextDay = 0, notes = "" }) {
+  const { data, error } = await supabase.rpc("close_business_day", {
+    p_session_token: sessionToken,
+    p_cash_handed_over: Number(cashHandedOver),
+    p_opening_float_for_next_day: Number(openingFloatForNextDay),
+    p_notes: notes || null,
   });
 
   throwRpcError(error);

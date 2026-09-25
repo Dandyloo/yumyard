@@ -1,129 +1,167 @@
-const ICONS = {
+export const ICONS = {
   add: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 5v14M5 12h14" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
     </svg>
   `,
   arrowRight: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 12h14M13 6l6 6-6 6" />
-    </svg>
-  `,
-  back: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M19 12H5M11 18l-6-6 6-6" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M5 12h14M13 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
     </svg>
   `,
   cart: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M3 4h2l2.1 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 1.9-1.4L20 8H7" />
-      <path d="M10 20.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0ZM18 20.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0Z" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <circle cx="9" cy="20" r="1.5" fill="currentColor" />
+      <circle cx="17" cy="20" r="1.5" fill="currentColor" />
+      <path d="M4 4h2l2.5 10h8.5l2-8H7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
     </svg>
   `,
   check: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="m5 12 4.2 4.2L19 6.5" />
-    </svg>
-  `,
-  chevronDown: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="m6 9 6 6 6-6" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
     </svg>
   `,
   close: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6 6l12 12M18 6 6 18" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
     </svg>
   `,
   delivery: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M3 6h11v10H3zM14 9h3l4 4v3h-7z" />
-      <path d="M7.5 19.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3ZM17.5 19.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <circle cx="7" cy="17" r="2" fill="currentColor" />
+      <circle cx="17" cy="17" r="2" fill="currentColor" />
+      <path d="M5 17H3V7h10v10M14 13h4l3 4v0h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
     </svg>
   `,
   dineIn: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 12h16M7 12v7M17 12v7M3 19h18" />
-      <path d="M6 12V8a6 6 0 0 1 12 0v4" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M3 3v18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
+      <path d="M7 7h10M7 12h10M7 17h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
     </svg>
   `,
   edit: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="m4 20 4.4-1 10.3-10.3a2.1 2.1 0 0 0-3-3L5.4 16 4 20Z" />
-      <path d="m13.8 7.5 2.8 2.8" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
     </svg>
   `,
   lock: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="4" y="10" width="16" height="10" rx="2" />
-      <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2" fill="none" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
+    </svg>
+  `,
+  logout: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M15 17l5-5-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
+      <path d="M4 12h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <path d="M10 21a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
     </svg>
   `,
   minus: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 12h14" />
-    </svg>
-  `,
-  more: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 12h.01M12 12h.01M19 12h.01" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
     </svg>
   `,
   orders: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7 3h10M7 21h10M7 3v3M17 3v3M7 21v-3M17 21v-3" />
-      <rect x="4" y="6" width="16" height="12" rx="2" />
-      <path d="M8 10h8M8 14h5" />
-    </svg>
-  `,
-  phone: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6.7 3.5 4.5 5.1c-.8.6-1 1.7-.5 2.6 2.8 5.8 5.9 8.9 11.7 11.7.9.4 2 .3 2.6-.5l1.6-2.2c.5-.7.4-1.7-.3-2.2l-3-2.1c-.6-.4-1.5-.3-2 .3l-1 1.2a12.7 12.7 0 0 1-3.5-3.5l1.2-1c.6-.5.7-1.4.3-2l-2.1-3c-.5-.7-1.5-.8-2.2-.3Z" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" fill="none" />
+      <path d="M14 2v6h6" stroke="currentColor" stroke-width="2" />
+      <path d="M16 13H8" stroke="currentColor" stroke-width="2" />
+      <path d="M16 17H8" stroke="currentColor" stroke-width="2" />
+      <path d="M10 9H8" stroke="currentColor" stroke-width="2" />
     </svg>
   `,
   pickup: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 10h16v9H4zM3 10h18M7 10V7a5 5 0 0 1 10 0v3" />
-      <path d="M9 14h6" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none" />
+      <path d="M12 2a10 10 0 0 1 10 10 10 10 0 0 1-10 10A10 10 0 0 1 2 12 10 10 0 0 1 12 2z" stroke="currentColor" stroke-width="2" fill="none" />
     </svg>
   `,
   receipt: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" />
-      <path d="M9 8h6M9 12h6M9 16h4" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M4 2v20l2-2 2 2 2-2 2 2 2-2 2 2V2l-2 2-2-2-2 2-2-2-2 2-2-2z" stroke="currentColor" stroke-width="2" fill="none" />
+      <path d="M8 8h8M8 12h8M8 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
     </svg>
   `,
   search: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="11" cy="11" r="6.5" />
-      <path d="m16 16 4 4" />
-    </svg>
-  `,
-  settings: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 2.1-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-3v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2.1-2.1.1-.1A1.7 1.7 0 0 0 7 15a1.7 1.7 0 0 0-1.5-1H5.3v-3h.2A1.7 1.7 0 0 0 7 10a1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.1-2.1.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h3v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2.1 2.1-.1.1A1.7 1.7 0 0 0 19.4 10a1.7 1.7 0 0 0 1.5 1h.2v3h-.2a1.7 1.7 0 0 0-1.5 1Z" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none" />
+      <path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
     </svg>
   `,
   trash: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M3 6h18" stroke="currentColor" stroke-width="2" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" stroke-width="2" fill="none" />
     </svg>
   `,
   user: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2" fill="none" />
+      <path d="M4.5 21a7.5 7.5 0 0 1 15 0" stroke="currentColor" stroke-width="2" fill="none" />
     </svg>
   `,
-  wifi: `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M3.5 9.5a13 13 0 0 1 17 0M6.7 12.8a8.5 8.5 0 0 1 10.6 0M9.8 16a4 4 0 0 1 4.4 0M12 20h.01" />
+  backspace: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M9 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-6-7 6-7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none" />
+      <path d="M13.5 9.5l5 5M18.5 9.5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    </svg>
+  `,
+  chevronLeft: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
+    </svg>
+  `,
+  ban: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none" />
+      <path d="M5.6 5.6l12.8 12.8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    </svg>
+  `,
+  grid: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="2" fill="none" />
+      <rect x="13" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="2" fill="none" />
+      <rect x="3" y="13" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="2" fill="none" />
+      <rect x="13" y="13" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="2" fill="none" />
+    </svg>
+  `,
+  list: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M9 6h12M9 12h12M9 18h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <circle cx="4" cy="6" r="1.5" fill="currentColor" />
+      <circle cx="4" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="4" cy="18" r="1.5" fill="currentColor" />
+    </svg>
+  `,
+  clock: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none" />
+      <path d="M12 7v5l3.5 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
+    </svg>
+  `,
+  hamburger: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    </svg>
+  `,
+  trophy: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M7 4h10v4a5 5 0 0 1-10 0V4z" stroke="currentColor" stroke-width="2" fill="none" />
+      <path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" />
+      <path d="M12 13v4M9 21h6M10 17h4v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-2z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" />
+    </svg>
+  `,
+  barChart: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="icon">
+      <path d="M4 20V10M11 20V4M18 20v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M3 20h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
     </svg>
   `,
 };
 
-export function icon(name, className = "") {
-  const svg = ICONS[name] || "";
-  return svg.replace("<svg", `<svg class="icon ${className}"`);
+export function icon(name) {
+  return ICONS[name] || "";
 }
