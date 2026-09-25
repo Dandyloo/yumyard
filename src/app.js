@@ -56,7 +56,6 @@ const state = {
   activeOrders: [],
   checkout: createCheckoutState(),
   isCategoryRailOpen: false,
-  isMobileCartOpen: false,
   loginWorkers: [],
   isLoadingWorkers: false,
   selectedWorkerId: null,
@@ -757,45 +756,29 @@ function renderPosShell(content) {
 
       ${content}
 
-      ${renderMobileCartSheet()}
+      ${renderMobileCartBar()}
     </div>
   `;
 }
 
-function renderMobileCartSheet() {
+function renderMobileCartBar() {
+  // The one entry point to the cart on narrow viewports: shows the
+  // running count/total and goes straight to checkout (same as the
+  // desktop cart panel's own checkout button) rather than opening a
+  // separate "Current Order" review drawer first.
   if (state.cart.length === 0) {
     return "";
   }
 
   return `
-    <div class="mobile-cart-sheet ${state.isMobileCartOpen ? "is-visible" : ""}" data-mobile-cart>
-      <div class="mobile-cart-header">
-        <h3>Current Order</h3>
-        <button type="button" data-toggle-mobile-cart>
-          ${state.isMobileCartOpen ? icon("close") : icon("cart")}
-        </button>
-      </div>
-      
-      <div class="mobile-cart-content">
-        ${state.cart.map((item) => renderCartItem(item)).join("")}
-      </div>
-      
-      <div class="mobile-cart-footer">
-        <div class="order-item-count">
-          <span>${getCartCount()} item${getCartCount() === 1 ? "" : "s"}</span>
-          <strong>${formatMoney(getCartSubtotal())}</strong>
-        </div>
-        <div class="order-total-row">
-          <span>Total</span>
-          <strong>${formatMoney(getOrderTotal())}</strong>
-        </div>
-        <button class="checkout-button" type="button" data-open-checkout>
-          <span>Checkout</span>
-          <strong>${formatMoney(getOrderTotal())}</strong>
-          ${icon("arrowRight")}
-        </button>
-      </div>
-    </div>
+    <button class="mobile-cart-bar" type="button" data-open-checkout>
+      <span class="mobile-cart-bar-count">
+        ${icon("cart")}
+        <span>${getCartCount()} item${getCartCount() === 1 ? "" : "s"}</span>
+      </span>
+      <span class="mobile-cart-bar-total">${formatMoney(getOrderTotal())}</span>
+      <span class="mobile-cart-bar-chevron">${icon("arrowRight")}</span>
+    </button>
   `;
 }
 
@@ -1512,7 +1495,6 @@ function bindScreenEvents() {
       state.error = "";
       state.notice = "";
       state.isCategoryRailOpen = false;
-      state.isMobileCartOpen = false;
       await refreshActiveOrders();
       renderApp(root);
     });
@@ -1524,7 +1506,6 @@ function bindScreenEvents() {
       state.error = "";
       state.notice = "";
       state.isCategoryRailOpen = false;
-      state.isMobileCartOpen = false;
       await refreshActiveOrders();
       renderApp(root);
     });
@@ -1536,7 +1517,6 @@ function bindScreenEvents() {
       state.error = "";
       state.notice = "";
       state.isCategoryRailOpen = false;
-      state.isMobileCartOpen = false;
       renderApp(root);
       await loadMyOrdersData();
     });
@@ -1600,22 +1580,6 @@ function bindScreenEvents() {
     });
   });
 
-  root.querySelectorAll("[data-toggle-mobile-cart]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.isMobileCartOpen = !state.isMobileCartOpen;
-      renderApp(root);
-    });
-  });
-
-  root.querySelectorAll("[data-mobile-cart]").forEach((sheet) => {
-    sheet.addEventListener("click", (event) => {
-      if (event.target === sheet) {
-        state.isMobileCartOpen = false;
-        renderApp(root);
-      }
-    });
-  });
-
   root.querySelectorAll("[data-category]").forEach((button) => {
     button.addEventListener("click", () => {
       if (window.innerWidth < 768) {
@@ -1636,12 +1600,6 @@ function bindScreenEvents() {
     if (item.requiresProtein) {
       openProteinModal(item);
       return;
-    }
-
-    // Open mobile cart on mobile only (set before addToCart so its
-    // single renderApp() call already reflects the open cart state)
-    if (window.innerWidth < 768) {
-      state.isMobileCartOpen = true;
     }
 
     addToCart(item);
@@ -1748,7 +1706,6 @@ function bindCartEvents() {
 
     state.cart = [];
     state.checkout = createCheckoutState();
-    state.isMobileCartOpen = false;
     renderApp(root);
   });
 
@@ -2475,7 +2432,6 @@ function bindCheckoutModal(modal) {
 
       state.cart = [];
       state.checkout = createCheckoutState();
-      state.isMobileCartOpen = false;
       await refreshActiveOrders();
 
       state.isLoading = false;
@@ -2965,7 +2921,6 @@ function resetOperationalState() {
   state.cart = [];
   state.activeCategoryId = null;
   state.isCategoryRailOpen = false;
-  state.isMobileCartOpen = false;
   state.selectedWorkerId = null;
   state.loginPin = "";
   state.checkout = createCheckoutState();
