@@ -56,6 +56,7 @@ const state = {
   activeOrders: [],
   checkout: createCheckoutState(),
   isCategoryRailOpen: false,
+  isCartSheetOpen: false,
   loginWorkers: [],
   isLoadingWorkers: false,
   selectedWorkerId: null,
@@ -798,6 +799,8 @@ function renderPosWorkspace() {
   }
 
   const showDesktopCart = state.cart.length > 0;
+  if (!showDesktopCart) state.isCartSheetOpen = false;
+  const cartSheetOpen = state.isCartSheetOpen;
 
   return `
     <div class="category-rail-overlay ${state.isCategoryRailOpen ? "is-visible" : ""}" data-close-categories></div>
@@ -849,7 +852,8 @@ function renderPosWorkspace() {
         </div>
       </section>
 
-      <aside class="order-panel">
+      <div class="cart-sheet-backdrop ${cartSheetOpen ? "is-visible" : ""}" data-close-cart-sheet></div>
+      <aside class="order-panel ${cartSheetOpen ? "is-sheet-open" : ""}">
         ${showDesktopCart ? renderOrderPanel() : renderEmptyOrderPanel()}
       </aside>
     </main>
@@ -916,16 +920,19 @@ function renderOrderPanel() {
         <h2>Order details</h2>
       </div>
 
-      ${
-        hasItems
-          ? `
-            <button class="clear-order-button" type="button" data-clear-order>
-              ${icon("trash")}
-              <span>Clear</span>
-            </button>
-          `
-          : ""
-      }
+      <div class="order-panel-header-actions" style="display:flex;align-items:center;gap:4px">
+        ${
+          hasItems
+            ? `
+              <button class="clear-order-button" type="button" data-clear-order>
+                ${icon("trash")}
+                <span>Clear</span>
+              </button>
+            `
+            : ""
+        }
+        <button class="cart-sheet-close" type="button" data-close-cart-sheet aria-label="Close cart">${icon("close")}</button>
+      </div>
     </div>
 
     <div class="order-panel-content">
