@@ -20,6 +20,9 @@ import {
 } from "./services/auth-service.js";
 import { APP_CONFIG } from "./lib/config.js";
 import { getPosMenu } from "./services/menu-service.js";
+import { getPosWorkerDashboard } from "./services/pos-dashboard-service.js";
+import { getPosOrderReceipt } from "./services/receipt-service.js";
+import { openReceiptPreview } from "./lib/receipt.js";
 import {
   createPosOrder,
   getPosActiveOrders,
@@ -61,6 +64,16 @@ const state = {
   isLoadingWorkers: false,
   selectedWorkerId: null,
   loginPin: "",
+  // "work" = normal sign-in; "close-day" = signing in only to close the day
+  loginIntent: "work",
+  closeDayFromLogin: false,
+  myDashboard: {
+    isLoading: false,
+    hasLoaded: false,
+    scope: "shift",
+    data: null,
+    error: "",
+  },
   myOrders: {
     isLoading: false,
     hasLoaded: false,
@@ -170,6 +183,10 @@ function renderScreen() {
     return renderPosShell(renderMyOrdersWorkspace());
   }
 
+  if (state.view === "my-dashboard") {
+    return renderPosShell(renderMyDashboardWorkspace());
+  }
+
   if (state.view === "pos") {
     return renderPosShell(renderPosWorkspace());
   }
@@ -200,7 +217,13 @@ function renderLoginScreen() {
         <div class="login-split-header">
           <img src="/yumyard-logo.png" alt="Yum Yard" class="login-logo" />
           <p class="section-kicker">Yum Yard POS</p>
-          <h1>${selectedWorker ? `Enter PIN for ${escapeHtml(selectedWorker.displayName)}` : "Who's working the till?"}</h1>
+          <h1>${
+            selectedWorker
+              ? `Enter PIN for ${escapeHtml(selectedWorker.displayName)}`
+              : state.loginIntent === "close-day"
+                ? "Who's closing the day?"
+                : "Who's working the till?"
+          }</h1>
         </div>
 
         ${state.error ? `<div class="form-alert error-alert">${escapeHtml(state.error)}</div>` : ""}
@@ -217,6 +240,11 @@ function renderLoginScreen() {
           ${renderPinPane(selectedWorker)}
         </div>
 
+        ${
+          state.loginIntent === "close-day"
+            ? `<button class="text-button" type="button" data-cancel-close-day-intent>Cancel — back to sign in</button>`
+            : `<button class="text-button login-close-day-button" type="button" data-start-close-day ${state.isLoading ? "disabled" : ""}>${icon("lock")}<span>Close the day</span></button>`
+        }
         <p class="login-help">Yum Yard · Abura, Cape Coast</p>
       </section>
     </main>
@@ -305,7 +333,7 @@ function renderPinPane(selectedWorker) {
       </div>
 
       <button class="checkout-button pin-submit-button" type="button" data-pin-submit ${canSubmit ? "" : "disabled"}>
-        <span>${state.isLoading ? "Signing in..." : "Sign in"}</span>
+        <span>${state.isLoading ? "Signing in..." : state.loginIntent === "close-day" ? "Continue to close day" : "Sign in"}</span>
         ${state.isLoading ? `<span class="button-spinner"></span>` : icon("arrowRight")}
       </button>
     </section>
@@ -328,7 +356,7 @@ function renderOpeningShiftScreen() {
   const inheritedCash = Number(context?.inherited_cash || 0);
   const isFirstShift = !context?.previous_shift_id;
   const afterDayClose = Boolean(context?.after_day_close);
-  const canCloseDay = ["owner", "manager"].includes(state.session?.workerRole);
+  const canCloseDay = true; // any signed-in worker may close the day
 
   return `
     <main class="shift-screen">
@@ -472,6 +500,11 @@ function renderClosingShiftScreen() {
         <div class="shift-intro">
           <h2>Confirm totals and cash</h2>
           <p>Verify the recorded totals and count the physical cash before closing your shift.</p>
+          ${
+            Number(preview.carry_over_order_count || 0) > 0
+              ? `<p><strong>${Number(preview.carry_over_order_count)} active order${Number(preview.carry_over_order_count) === 1 ? "" : "s"}</strong> will stay open for the other worker${Number(preview.other_open_shift_count || 0) === 1 ? "" : "s"} still on shift.</p>`
+              : ""
+          }
         </div>
 
         <div class="closing-summary-grid">
@@ -510,7 +543,7 @@ function renderClosingShiftScreen() {
           openOrders.length
             ? `
               <div class="form-alert error-alert close-shift-blocked-banner">
-                <strong>Cannot close shift yet.</strong>
+                <strong>Cannot close the last open shift yet.</strong>
                 <span>${openOrders.length} active order${openOrders.length === 1 ? " is" : "s are"} still open. Complete, cancel, or otherwise resolve ${openOrders.length === 1 ? "it" : "them"} on the Orders screen before closing.</span>
               </div>
 
@@ -595,7 +628,38 @@ function renderCloseDayScreen() {
     return renderLoginScreen();
   }
 
-  const lastCash = Number(preview.last_shift_actual_cash_counted || 0);
+  // Whole-drawer total across all shifts since the last day close.
+  const lastCash = Number(
+    preview.drawer_cash_total ?? preview.last_shift_actual_cash_counted ?? 0,
+  );
+
+  // Shifts still open and/or orders still active: the day can still be closed,
+  // but the server closes those shifts and settles the orders itself.
+  const isForce = !preview.can_close && Boolean(preview.can_force_close);
+  const forceWarning = isForce
+    ? `
+      <div class="form-alert error-alert">
+        <strong>Closing the day now will:</strong>
+        <ul>
+          ${
+            Number(preview.open_shift_count || 0) > 0
+              ? `<li>Close the open shift${Number(preview.open_shift_count) === 1 ? "" : "s"} for ${escapeHtml(preview.open_shift_workers || "")} and sign them out. Their cash will be recorded as expected, not counted.</li>`
+              : ""
+          }
+          ${
+            Number(preview.paid_active_order_count || 0) > 0
+              ? `<li>Complete ${Number(preview.paid_active_order_count)} fully paid active order${Number(preview.paid_active_order_count) === 1 ? "" : "s"}.</li>`
+              : ""
+          }
+          ${
+            Number(preview.unpaid_active_order_count || 0) > 0
+              ? `<li>Cancel ${Number(preview.unpaid_active_order_count)} unpaid active order${Number(preview.unpaid_active_order_count) === 1 ? "" : "s"}.</li>`
+              : ""
+          }
+        </ul>
+      </div>
+    `
+    : "";
 
   return `
     <main class="shift-screen">
@@ -636,7 +700,7 @@ function renderCloseDayScreen() {
                 <strong>${escapeHtml(preview.last_shift_worker_name)}</strong>
                 <small>Closed ${formatShortDateTime(preview.last_shift_closed_at)}</small>
                 <div>
-                  <span>Cash counted</span>
+                  <span>Cash in drawer (all shifts)</span>
                   <b>${formatMoney(lastCash)}</b>
                 </div>
               </div>
@@ -647,9 +711,11 @@ function renderCloseDayScreen() {
         ${state.error ? `<div class="form-alert error-alert">${escapeHtml(state.error)}</div>` : ""}
 
         ${
-          preview.can_close
+          preview.can_close || preview.can_force_close
             ? `
+              ${forceWarning}
               <form id="close-day-form" class="open-shift-form">
+                <input type="hidden" name="force" value="${isForce ? "1" : "0"}" />
                 <label class="form-field">
                   <span>Cash handed over to owner</span>
                   <div class="money-input">
@@ -692,12 +758,17 @@ function renderCloseDayScreen() {
                 </label>
 
                 <button class="checkout-button" type="submit" ${state.isLoading ? "disabled" : ""}>
-                  <span>${state.isLoading ? "Closing day..." : "Close the day"}</span>
+                  <span>${state.isLoading ? "Closing day..." : isForce ? "Close the day anyway" : "Close the day"}</span>
                   ${state.isLoading ? `<span class="button-spinner"></span>` : icon("logout")}
                 </button>
               </form>
             `
-            : `<div class="form-alert error-alert">${escapeHtml(preview.blocked_reason || "The day cannot be closed right now.")}</div>`
+            : `
+              <div class="form-alert error-alert">${escapeHtml(preview.force_blocked_reason || preview.blocked_reason || "The day cannot be closed right now.")}</div>
+              <button class="outline-action-button" type="button" data-refresh-close-day ${state.isLoading ? "disabled" : ""}>
+                <span>Check again</span>
+              </button>
+            `
         }
 
         <button class="text-button" type="button" data-cancel-close-day ${state.isLoading ? "disabled" : ""}>
@@ -733,6 +804,10 @@ function renderPosShell(content) {
           <button class="topbar-tab ${state.view === "my-orders" ? "is-active" : ""}" type="button" data-go-my-orders>
             ${icon("clock")}
             <span>My history</span>
+          </button>
+          <button class="topbar-tab ${state.view === "my-dashboard" ? "is-active" : ""}" type="button" data-go-my-dashboard>
+            ${icon("barChart")}
+            <span>My sales</span>
           </button>
         </div>
 
@@ -1002,7 +1077,7 @@ function renderOrdersWorkspace() {
     <main class="orders-workspace">
       <div class="orders-header">
         <div>
-          <p class="section-kicker">Active shift orders</p>
+          <p class="section-kicker">Active orders</p>
           <h1>Orders</h1>
         </div>
 
@@ -1027,7 +1102,7 @@ function renderOrdersWorkspace() {
             <section class="orders-empty">
               <div class="empty-outline-icon">${icon("check")}</div>
               <h2>No active orders</h2>
-              <p>Orders created in this shift and accepted handovers will appear here.</p>
+              <p>Active orders from every worker on shift will appear here.</p>
               <button class="new-order-button" type="button" data-go-pos>
                 ${icon("add")}
                 <span>Create order</span>
@@ -1151,6 +1226,181 @@ function renderActiveOrderCard(order) {
       </div>
     </article>
   `;
+}
+
+function renderMyDashboardWorkspace() {
+  const dash = state.myDashboard;
+  const data = dash.data;
+  const isShift = dash.scope === "shift";
+
+  const scopeTabs = `
+    <div class="menu-filter-tabs">
+      <button class="menu-filter-tab ${isShift ? "is-active" : ""}" type="button" data-dashboard-scope="shift">This shift</button>
+      <button class="menu-filter-tab ${!isShift ? "is-active" : ""}" type="button" data-dashboard-scope="day">Today</button>
+    </div>
+  `;
+
+  const header = `
+    <div class="orders-header">
+      <div>
+        <p class="section-kicker">Your sales</p>
+        <h1>My sales</h1>
+      </div>
+      <button class="outline-action-button" type="button" data-dashboard-refresh ${dash.isLoading ? "disabled" : ""}>
+        <span>Refresh</span>
+      </button>
+    </div>
+    ${scopeTabs}
+  `;
+
+  if (dash.error) {
+    return `<main class="orders-workspace my-sales-workspace">${header}<div class="form-alert error-alert">${escapeHtml(dash.error)}</div></main>`;
+  }
+
+  if (!data || (dash.isLoading && !dash.hasLoaded)) {
+    return `<main class="orders-workspace my-sales-workspace">${header}<div class="dashboard-chart-empty"><span class="boot-spinner"></span></div></main>`;
+  }
+
+  // Always show the usual methods (even at 0), plus any other method seen.
+  const known = ["cash", "momo", "hubtel"];
+  const byMethod = new Map((data.by_method || []).map((row) => [row.method, row]));
+  const methods = [
+    ...known,
+    ...[...byMethod.keys()].filter((method) => !known.includes(method)),
+  ];
+  const total = Number(data.total_collected || 0);
+
+  const methodCards = methods
+    .map((method) => {
+      const row = byMethod.get(method);
+      const amount = Number(row?.amount || 0);
+      const count = Number(row?.count || 0);
+      const share = total > 0 ? Math.round((amount / total) * 100) : 0;
+
+      return `
+        <div class="my-sales-method">
+          <span class="my-sales-method-name">${escapeHtml(formatPaymentMethod(method))}</span>
+          <strong>${formatMoney(amount)}</strong>
+          <small>${count} payment${count === 1 ? "" : "s"}${total > 0 ? ` \u00b7 ${share}%` : ""}</small>
+          <div class="my-sales-bar"><span style="width:${share}%"></span></div>
+        </div>
+      `;
+    })
+    .join("");
+
+  const cancelled = data.cancelled_orders || [];
+  const cancelledRows = cancelled
+    .map(
+      (order) => `
+        <div class="my-sales-cancelled-row">
+          <div>
+            <strong>#${escapeHtml(order.order_number)}</strong>
+            <small>${escapeHtml(order.reason || "No reason given")}${order.cancelled_by ? ` \u00b7 by ${escapeHtml(order.cancelled_by)}` : ""}</small>
+          </div>
+          <span>${formatMoney(order.total)}</span>
+        </div>
+      `,
+    )
+    .join("");
+
+  return `
+    <main class="orders-workspace my-sales-workspace">
+      ${header}
+
+      <div class="my-sales-scroll">
+      <p class="my-sales-scope-note">
+        ${
+          isShift
+            ? `Since your shift opened ${formatShortDateTime(data.since)}`
+            : `Since the last day close (${formatShortDateTime(data.since)})`
+        }. Totals are the money <em>you</em> collected.
+      </p>
+
+      <div class="closing-summary-grid">
+        <div class="closing-summary-card highlight">
+          <span>Total collected</span>
+          <strong>${formatMoney(total)}</strong>
+        </div>
+        <div class="closing-summary-card">
+          <span>Orders</span>
+          <strong>${Number(data.orders_count || 0)}</strong>
+        </div>
+        <div class="closing-summary-card">
+          <span>Average order</span>
+          <strong>${formatMoney(data.average_order_value)}</strong>
+        </div>
+      </div>
+
+      <section class="my-sales-section">
+        <h2>By payment method</h2>
+        <div class="my-sales-methods">${methodCards}</div>
+      </section>
+
+      <section class="my-sales-section">
+        <h2>Cancelled orders</h2>
+        <div class="my-sales-cancelled-summary">
+          <div><span>Cancelled</span><strong>${Number(data.cancelled_count || 0)}</strong></div>
+          <div><span>Value lost</span><strong>${formatMoney(data.cancelled_value)}</strong></div>
+        </div>
+        ${
+          cancelled.length
+            ? `<div class="my-sales-cancelled-list">${cancelledRows}</div>`
+            : `<p class="my-sales-empty">No cancelled orders ${isShift ? "this shift" : "today"}.</p>`
+        }
+      </section>
+
+      ${
+        Number(data.outstanding_count || 0) > 0
+          ? `
+            <section class="my-sales-section my-sales-outstanding">
+              <div>
+                <h2>Still owed</h2>
+                <p>${formatMoney(data.outstanding_balance)} unpaid across ${Number(data.outstanding_count)} of your active order${Number(data.outstanding_count) === 1 ? "" : "s"}.</p>
+              </div>
+              <button class="outline-action-button" type="button" data-go-orders>
+                <span>View orders</span>
+              </button>
+            </section>
+          `
+          : ""
+      }
+
+      ${
+        isShift
+          ? `
+            <section class="my-sales-section">
+              <h2>Cash in your drawer</h2>
+              <div class="my-sales-drawer">
+                <div><span>Opening cash</span><b>${formatMoney(data.shift_opening_cash)}</b></div>
+                <div><span>Cash collected</span><b>${formatMoney(data.shift_cash_collected)}</b></div>
+                <div class="is-total"><span>Expected cash</span><b>${formatMoney(data.shift_expected_cash)}</b></div>
+              </div>
+            </section>
+          `
+          : ""
+      }
+      </div>
+    </main>
+  `;
+}
+
+async function loadMyDashboardData() {
+  try {
+    state.myDashboard.isLoading = true;
+    state.myDashboard.error = "";
+    renderApp(state.root);
+
+    state.myDashboard.data = await getPosWorkerDashboard(
+      state.session.sessionToken,
+      state.myDashboard.scope,
+    );
+    state.myDashboard.hasLoaded = true;
+  } catch (error) {
+    state.myDashboard.error = toUserMessage(error);
+  } finally {
+    state.myDashboard.isLoading = false;
+    renderApp(state.root);
+  }
 }
 
 function renderMyOrdersWorkspace() {
@@ -1343,6 +1593,9 @@ async function openMyOrderDetail(orderId) {
       `<button class="modal-close-button" type="button" data-close-modal aria-label="Close">${icon("close")}</button>` +
       renderMyOrderDetailBody(detail);
     modal.querySelector("[data-close-modal]")?.addEventListener("click", () => modal.remove());
+    modal.querySelector("[data-print-receipt]")?.addEventListener("click", () => {
+      openReceiptForOrder(detail.orderId, modal);
+    });
   } catch (error) {
     modal.querySelector(".modal-card").innerHTML =
       `<button class="modal-close-button" type="button" data-close-modal aria-label="Close">${icon("close")}</button>` +
@@ -1417,7 +1670,24 @@ function renderMyOrderDetailBody(detail) {
       <h3>Payments</h3>
       ${paymentsHtml}
     </div>
+
+    <div class="receipt-actions">
+      <button class="outline-action-button" type="button" data-print-receipt>
+        ${icon("receipt")}
+        <span>Print receipt</span>
+      </button>
+    </div>
   `;
+}
+
+// Loads the full receipt for any order in this branch and opens the print preview.
+async function openReceiptForOrder(orderId, modal) {
+  try {
+    const receipt = await getPosOrderReceipt(state.session.sessionToken, orderId);
+    openReceiptPreview(receipt);
+  } catch (error) {
+    showModalError(modal, toUserMessage(error));
+  }
 }
 
 function bindMyOrdersEvents() {
@@ -1528,6 +1798,31 @@ function bindScreenEvents() {
     });
   });
 
+  root.querySelectorAll("[data-go-my-dashboard]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      state.view = "my-dashboard";
+      state.error = "";
+      state.notice = "";
+      state.isCategoryRailOpen = false;
+      renderApp(root);
+      await loadMyDashboardData();
+    });
+  });
+
+  root.querySelectorAll("[data-dashboard-scope]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (state.myDashboard.scope === button.dataset.dashboardScope) return;
+      state.myDashboard.scope = button.dataset.dashboardScope;
+      await loadMyDashboardData();
+    });
+  });
+
+  root.querySelectorAll("[data-dashboard-refresh]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await loadMyDashboardData();
+    });
+  });
+
   root.querySelectorAll("[data-switch-worker]").forEach((button) => {
     button.addEventListener("click", () => {
       lockAndReturnToLogin();
@@ -1554,8 +1849,20 @@ function bindScreenEvents() {
     });
   });
 
+  root.querySelectorAll("[data-refresh-close-day]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await openCloseDayFlow();
+    });
+  });
+
   root.querySelectorAll("[data-cancel-close-day]").forEach((button) => {
     button.addEventListener("click", async () => {
+      if (state.closeDayFromLogin) {
+        // Came in from the login screen only to close the day: just sign out.
+        await signOut();
+        return;
+      }
+
       state.error = "";
       state.view = "opening-shift";
       state.isLoading = true;
@@ -1620,6 +1927,25 @@ function bindScreenEvents() {
 
 function bindLoginEvents() {
   const root = state.root;
+
+  root.querySelector("[data-start-close-day]")?.addEventListener("click", () => {
+    state.loginIntent = "close-day";
+    state.selectedWorkerId = null;
+    state.loginPin = "";
+    state.error = "";
+    state.notice = "";
+    renderApp(root);
+  });
+
+  root
+    .querySelector("[data-cancel-close-day-intent]")
+    ?.addEventListener("click", () => {
+      state.loginIntent = "work";
+      state.selectedWorkerId = null;
+      state.loginPin = "";
+      state.error = "";
+      renderApp(root);
+    });
 
   root.querySelectorAll("[data-select-profile]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1803,6 +2129,15 @@ async function handleProfileLoginSubmit() {
     state.loginPin = "";
     startInactivityWatch();
 
+    if (state.loginIntent === "close-day") {
+      // Signed in only to close the day: do NOT auto-open a shift (an open
+      // shift would block the close). Go straight to the close-day screen.
+      state.closeDayFromLogin = true;
+      state.loginIntent = "work";
+      await openCloseDayFlow();
+      return;
+    }
+
     await routeAuthenticatedWorker();
   } catch (error) {
     // A wrong PIN shouldn't force the worker to re-find their name in the
@@ -1828,13 +2163,8 @@ async function routeAuthenticatedWorker() {
       state.session.sessionToken,
     );
 
+    // The server now only reports THIS worker's own open shift here.
     if (openingContext?.active_shift_id) {
-      if (openingContext.active_shift_worker_id !== state.session.workerId) {
-        throw new Error(
-          `${openingContext.active_shift_worker_name} has an active shift. The shift must be closed before you can open yours.`,
-        );
-      }
-
       state.shift = {
         shiftId: openingContext.active_shift_id,
         workerId: openingContext.active_shift_worker_id,
@@ -1843,6 +2173,23 @@ async function routeAuthenticatedWorker() {
         openedAt: openingContext.active_shift_opened_at,
       };
 
+      await loadAfterShiftOpen();
+      return;
+    }
+
+    // Another worker already has a shift open (shared till): join straight
+    // in. Opening cash is 0 - this worker is accountable for what they collect.
+    if (
+      !openingContext?.requires_opening_cash &&
+      Number(openingContext?.other_open_shift_count || 0) > 0
+    ) {
+      const joinedShift = await openWorkerShift(
+        state.session.sessionToken,
+        0,
+        "Auto-opened: joined while another shift was open",
+      );
+
+      state.shift = normalizeShift(joinedShift);
       await loadAfterShiftOpen();
       return;
     }
@@ -1978,6 +2325,7 @@ async function handleCloseDaySubmit(event) {
   const cashHandedOver = Number(formData.get("cashHandedOver"));
   const openingFloat = Number(formData.get("openingFloat"));
   const notes = String(formData.get("notes") || "").trim();
+  const force = formData.get("force") === "1";
 
   if (Number.isNaN(cashHandedOver) || cashHandedOver < 0) {
     state.error = "Enter a valid cash amount.";
@@ -2000,9 +2348,16 @@ async function handleCloseDaySubmit(event) {
       cashHandedOver,
       openingFloatForNextDay: openingFloat,
       notes,
+      force,
     });
 
     state.closeDayPreview = null;
+
+    if (state.closeDayFromLogin) {
+      await signOut("Day closed. Thank you — see you tomorrow.");
+      return;
+    }
+
     state.notice = "Day closed. Ready for a new day.";
     state.shiftOpeningContext = await getShiftOpeningContext(state.session.sessionToken);
     state.view = "opening-shift";
@@ -2697,6 +3052,10 @@ function renderOrderDetailsView(order) {
       }
 
       <div class="receipt-actions">
+        <button class="outline-action-button" type="button" data-print-receipt>
+          ${icon("receipt")}
+          <span>Print receipt</span>
+        </button>
         <button class="solid-action-button" type="button" data-close-modal>
           <span>Done</span>
           ${icon("check")}
@@ -2763,6 +3122,10 @@ function bindOrderDetailsView(modal, order) {
   modal
     .querySelector("[data-close-modal]")
     ?.addEventListener("click", () => modal.remove());
+
+  modal.querySelector("[data-print-receipt]")?.addEventListener("click", () => {
+    openReceiptForOrder(order.order_id, modal);
+  });
 
   modal.querySelector("[data-open-cancel-order]")?.addEventListener("click", () => {
     modal.innerHTML = renderCancelOrderView(order);
@@ -2886,6 +3249,7 @@ function isAuthenticatedView(view) {
     view === "close-day" ||
     view === "orders" ||
     view === "my-orders" ||
+    view === "my-dashboard" ||
     view === "pos"
   );
 }
@@ -2929,9 +3293,14 @@ function resetOperationalState() {
   state.isCategoryRailOpen = false;
   state.selectedWorkerId = null;
   state.loginPin = "";
+  state.loginIntent = "work";
+  state.closeDayFromLogin = false;
   state.checkout = createCheckoutState();
   state.error = "";
   state.myOrders.hasLoaded = false;
+  state.myDashboard.hasLoaded = false;
+  state.myDashboard.data = null;
+  state.myDashboard.scope = "shift";
   state.myOrders.list = [];
   state.myOrders.totalCount = 0;
   state.myOrders.offset = 0;

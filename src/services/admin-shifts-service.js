@@ -32,6 +32,8 @@ export async function getAdminShiftHistory(sessionToken, filters = {}) {
       actualCashCounted: row.actual_cash_counted == null ? null : Number(row.actual_cash_counted),
       cashVariance: row.cash_variance == null ? null : Number(row.cash_variance),
       closingNote: row.closing_note || "",
+      forceClosed: Boolean(row.force_closed),
+      autoClosed: Boolean(row.auto_closed),
     })),
     totalCount: rows.length ? Number(rows[0].total_count) : 0,
   };

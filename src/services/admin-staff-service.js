@@ -58,6 +58,15 @@ export async function setWorkerActive(sessionToken, workerId, isActive) {
   throwRpcError(error);
 }
 
+export async function deleteWorker(sessionToken, workerId) {
+  const { error } = await supabase.rpc("admin_delete_worker", {
+    p_session_token: sessionToken,
+    p_worker_id: workerId,
+  });
+
+  throwRpcError(error);
+}
+
 export async function resetWorkerPin(sessionToken, workerId, newPin) {
   const { error } = await supabase.rpc("admin_reset_worker_pin", {
     p_session_token: sessionToken,

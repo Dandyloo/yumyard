@@ -1130,7 +1130,9 @@ select {
 
 .pinpad-pane {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  /* The keypad row can grow but never shrink below its own content height, so
+     the Sign in button can't be drawn on top of the digit keys. */
+  grid-template-rows: auto auto auto minmax(min-content, 1fr) auto;
   gap: 0.875rem;
   min-height: 0;
   padding: 0.75rem;
@@ -1229,8 +1231,8 @@ select {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-template-rows: repeat(4, minmax(3.25rem, 1fr));
   gap: 0.5rem;
-  height: 100%;
-  min-height: 0;
+  height: auto;
+  min-height: min-content;
 }
 
 .pin-key {
@@ -1277,6 +1279,21 @@ select {
 
 .pin-submit-button {
   align-self: end;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+/* Short screens: slightly smaller (still 44px) keys instead of overflow */
+@media (max-height: 700px) {
+  .pin-keypad {
+    grid-template-rows: repeat(4, minmax(2.75rem, 1fr));
+    gap: 0.375rem;
+  }
+
+  .pin-key {
+    min-height: 2.75rem;
+    font-size: 1.25rem;
+  }
 }
 
 @media (min-width: 640px) {
@@ -1383,6 +1400,365 @@ select {
     grid-template-rows: repeat(4, minmax(2.75rem, 1fr));
     gap: 0.375rem;
   }
+}
+
+/* ---- Login: Close the day (outlined, brand colour) ----
+   --brand-ink is maroon in light mode and a lighter tint in dark mode, so the
+   border + text stay readable in both. --maroon-50 is the matching soft fill. */
+.text-button.login-close-day-button {
+  margin: 0.75rem auto 0;
+  padding: 0 1.25rem;
+  border: 1.5px solid var(--brand-ink);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--brand-ink);
+}
+
+.text-button.login-close-day-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.text-button.login-close-day-button:active:not(:disabled) {
+  background: var(--maroon-100);
+}
+
+.text-button.login-close-day-button:disabled {
+  border-color: var(--line-strong);
+  color: var(--muted);
+}
+
+@media (hover: hover) {
+  .text-button.login-close-day-button:hover:not(:disabled) {
+    background: var(--maroon-50);
+    color: var(--brand-ink);
+  }
+}
+
+/* ---- Receipt (preview + print) ---- */
+#receipt-print-root {
+  display: none;
+}
+
+.rcpt {
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 3mm 2mm;
+  background: #fff;
+  color: #000;
+  font-family: "Courier New", Courier, ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.rcpt-w80 {
+  width: 76mm;
+}
+
+.rcpt-w58 {
+  width: 52mm;
+  font-size: 11px;
+}
+
+.rcpt-center {
+  text-align: center;
+}
+
+.rcpt-logo {
+  display: block;
+  width: 22mm;
+  height: auto;
+  margin: 0 auto 1mm;
+  filter: grayscale(1) contrast(1.6);
+}
+
+.rcpt-title {
+  font-size: 1.35em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rcpt-rule {
+  margin: 2mm 0;
+  border-top: 1px dashed #000;
+}
+
+.rcpt-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 3mm;
+}
+
+.rcpt-row > span:last-child {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.rcpt-grow {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rcpt-strong {
+  font-weight: 700;
+}
+
+.rcpt-total {
+  margin-top: 1mm;
+  font-size: 1.2em;
+  font-weight: 700;
+}
+
+.rcpt-small {
+  margin-top: 1mm;
+  font-size: 0.85em;
+}
+
+.receipt-preview-card {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 2rem);
+}
+
+.receipt-preview-paper {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0.75rem 0;
+  padding: 0.75rem 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--surface-soft, #f4f2ef);
+  border: 1px solid var(--line, #e6e0da);
+  border-radius: var(--radius-md, 12px);
+}
+
+.receipt-preview-paper .rcpt {
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+  max-width: 100%;
+}
+
+.receipt-paper-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--surface-soft, #f4f2ef);
+  border-radius: 999px;
+  align-self: flex-start;
+}
+
+.receipt-paper-toggle button {
+  min-height: 2.25rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.receipt-paper-toggle button.is-active {
+  background: var(--primary, #7a0c1e);
+  color: #fff;
+}
+
+.receipt-preview-hint {
+  margin: 0.5rem 0 0;
+  color: var(--muted, #6b685f);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+@media print {
+  @page {
+    margin: 0;
+  }
+
+  body.printing-receipt {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body.printing-receipt > *:not(#receipt-print-root) {
+    display: none !important;
+  }
+
+  body.printing-receipt #receipt-print-root {
+    display: block;
+  }
+
+  body.printing-receipt .rcpt {
+    margin: 0;
+    box-shadow: none;
+  }
+}
+
+/* ---- My sales (worker dashboard) ---- */
+/* Header + scope tabs stay put; only the content below scrolls (vertical only). */
+.my-sales-workspace {
+  overflow-x: hidden;
+}
+
+.my-sales-workspace > .orders-header,
+.my-sales-workspace > .menu-filter-tabs {
+  flex: 0 0 auto;
+}
+
+.my-sales-workspace > .menu-filter-tabs {
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.my-sales-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: max(0.75rem, var(--safe-bottom));
+}
+
+.my-sales-scroll > *,
+.my-sales-section,
+.my-sales-method,
+.my-sales-cancelled-row > div {
+  min-width: 0;
+}
+
+.my-sales-scope-note {
+  margin: 0.25rem 0 0.875rem;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.my-sales-section {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.my-sales-section h2 {
+  margin-bottom: 0.75rem;
+  font-size: var(--fs-lg);
+}
+
+.my-sales-methods {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.my-sales-method {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.875rem;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.my-sales-method-name {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.my-sales-method strong {
+  font-size: var(--fs-xl);
+}
+
+.my-sales-method small,
+.my-sales-cancelled-row small {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.my-sales-bar {
+  height: 0.375rem;
+  margin-top: 0.25rem;
+  overflow: hidden;
+  background: var(--line);
+  border-radius: var(--radius-full, 999px);
+}
+
+.my-sales-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  border-radius: inherit;
+}
+
+.my-sales-cancelled-summary,
+.my-sales-drawer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.75rem;
+}
+
+.my-sales-cancelled-summary > div,
+.my-sales-drawer > div {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.my-sales-cancelled-summary span,
+.my-sales-drawer span {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.my-sales-drawer .is-total b {
+  color: var(--primary);
+}
+
+.my-sales-cancelled-list {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.my-sales-cancelled-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.my-sales-cancelled-row > div {
+  display: grid;
+  min-width: 0;
+}
+
+.my-sales-empty {
+  margin-top: 0.75rem;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.my-sales-outstanding {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.my-sales-outstanding h2 {
+  margin-bottom: 0.25rem;
 }
 
 /* ---- Shift screens ---- */

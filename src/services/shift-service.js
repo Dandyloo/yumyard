@@ -74,12 +74,16 @@ export async function getCloseDayPreview(sessionToken) {
   return Array.isArray(data) ? data[0] : data;
 }
 
-export async function closeBusinessDay(sessionToken, { cashHandedOver, openingFloatForNextDay = 0, notes = "" }) {
+export async function closeBusinessDay(
+  sessionToken,
+  { cashHandedOver, openingFloatForNextDay = 0, notes = "", force = false },
+) {
   const { data, error } = await supabase.rpc("close_business_day", {
     p_session_token: sessionToken,
     p_cash_handed_over: Number(cashHandedOver),
     p_opening_float_for_next_day: Number(openingFloatForNextDay),
     p_notes: notes || null,
+    p_force: Boolean(force),
   });
 
   throwRpcError(error);

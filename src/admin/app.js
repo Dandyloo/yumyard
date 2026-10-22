@@ -37,6 +37,7 @@ import {
   updateWorker,
   setWorkerActive,
   resetWorkerPin,
+  deleteWorker,
 } from "../services/admin-staff-service.js";
 import { getAdminOrderHistory, getAdminOrderDetail } from "../services/admin-orders-service.js";
 import { getAdminShiftHistory, getAdminShiftDetail } from "../services/admin-shifts-service.js";
@@ -112,6 +113,7 @@ const state = {
     editingWorkerId: null,
     editingWorker: { displayName: "", role: "" },
     resettingPinWorkerId: null,
+    confirmingDeleteWorkerId: null,
     resetPin: { pin: "", confirmPin: "" },
     isSaving: false,
   },
@@ -1597,6 +1599,24 @@ function renderNewWorkerForm() {
 function renderStaffCard(worker) {
   const isSelf = state.session.workerId === worker.workerId;
   const canResetPins = ["owner", "manager"].includes(state.session.workerRole);
+  const canDelete = canResetPins && !isSelf;
+
+  if (state.staff.confirmingDeleteWorkerId === worker.workerId) {
+    return `
+      <div class="menu-item-card">
+        <div class="menu-item-edit-form">
+          <strong>Delete ${escapeHtml(worker.displayName)}?</strong>
+          <p class="menu-item-category-tag">They'll be signed out, removed from the staff list and the login screen, and can't sign in again. Their past orders, shifts and payments stay in your reports.</p>
+          <div class="menu-form-actions">
+            <button class="solid-action-button" type="button" data-confirm-delete-worker="${worker.workerId}" ${state.staff.isSaving ? "disabled" : ""}>
+              ${state.staff.isSaving ? `<span class="button-spinner"></span>` : "Yes, delete account"}
+            </button>
+            <button class="outline-action-button" type="button" data-cancel-delete-worker>Cancel</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
   if (state.staff.editingWorkerId === worker.workerId) {
     return renderWorkerEditForm(worker);
@@ -1641,7 +1661,12 @@ function renderStaffCard(worker) {
         </button>
         ${
           canResetPins
-            ? `<button class="menu-icon-button" type="button" data-reset-worker-pin="${worker.workerId}" title="Reset PIN">${icon("lock")}</button>`
+            ? `<button class="outline-action-button" type="button" data-reset-worker-pin="${worker.workerId}" title="Change PIN">${icon("lock")}<span>Change PIN</span></button>`
+            : ""
+        }
+        ${
+          canDelete
+            ? `<button class="outline-action-button" type="button" data-delete-worker="${worker.workerId}" title="Delete account"><span>Delete</span></button>`
             : ""
         }
       </div>
@@ -1732,6 +1757,7 @@ async function runStaffMutation(action) {
     state.staff.newWorker = { displayName: "", username: "", pin: "", confirmPin: "", role: "cashier" };
     state.staff.editingWorkerId = null;
     state.staff.resettingPinWorkerId = null;
+    state.staff.confirmingDeleteWorkerId = null;
 
     await loadStaffData();
   } catch (error) {
@@ -1852,6 +1878,26 @@ function bindStaffEvents() {
         (candidate) => candidate.workerId === button.dataset.toggleWorkerActive,
       );
       runStaffMutation(() => setWorkerActive(token(), worker.workerId, !worker.isActive));
+    });
+  });
+
+  // Delete account (two-step confirm)
+  root.querySelectorAll("[data-delete-worker]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.staff.confirmingDeleteWorkerId = button.dataset.deleteWorker;
+      state.error = "";
+      renderAdminApp(root);
+    });
+  });
+
+  root.querySelector("[data-cancel-delete-worker]")?.addEventListener("click", () => {
+    state.staff.confirmingDeleteWorkerId = null;
+    renderAdminApp(root);
+  });
+
+  root.querySelectorAll("[data-confirm-delete-worker]").forEach((button) => {
+    button.addEventListener("click", () => {
+      runStaffMutation(() => deleteWorker(token(), button.dataset.confirmDeleteWorker));
     });
   });
 
@@ -2364,9 +2410,11 @@ function renderShiftsResults() {
 }
 
 function shiftToRowViewModel(shift) {
-  const varianceClass = shift.cashVariance === null ? "" : shift.cashVariance === 0 ? "is-balanced" : "is-off";
-  const varianceLabel =
-    shift.cashVariance === null
+  const wasForced = Boolean(shift.autoClosed || shift.forceClosed);
+  const varianceClass = wasForced ? "" : shift.cashVariance === null ? "" : shift.cashVariance === 0 ? "is-balanced" : "is-off";
+  const varianceLabel = wasForced
+    ? "Not counted"
+    : shift.cashVariance === null
       ? "—"
       : shift.cashVariance === 0
         ? "Matches"
@@ -2374,6 +2422,7 @@ function shiftToRowViewModel(shift) {
 
   return {
     workerName: shift.workerName,
+    closeBadge: renderShiftCloseBadge(shift),
     // Open shifts don't have a green "Closed" pill yet - reusing
     // status-confirmed (blue, already styled) for "Open" avoids adding a
     // near-duplicate CSS rule for a state that's rare in history (most
@@ -2391,13 +2440,27 @@ function shiftToRowViewModel(shift) {
   };
 }
 
+// "Auto-closed" = the 1 AM job closed it; "Closed by others" = someone closed the
+// whole day while this shift was still open. Either way cash was NOT counted.
+function renderShiftCloseBadge(shift) {
+  if (shift.autoClosed) {
+    return `<span class="status-pill status-preparing" title="Closed automatically at end of day. Cash was not counted.">Auto-closed</span>`;
+  }
+
+  if (shift.forceClosed) {
+    return `<span class="status-pill status-preparing" title="Closed when someone closed the day. Cash was not counted.">Closed with the day</span>`;
+  }
+
+  return "";
+}
+
 function renderShiftTableRow(shift) {
   const vm = shiftToRowViewModel(shift);
 
   return `
     <tr data-view-shift="${shift.shiftId}">
       <td class="is-worker">${escapeHtml(vm.workerName)}</td>
-      <td><span class="status-pill ${vm.statusClass}">${vm.statusLabel}</span></td>
+      <td><span class="status-pill ${vm.statusClass}">${vm.statusLabel}</span> ${vm.closeBadge}</td>
       <td>${vm.openedAtLabel}</td>
       <td>${vm.closedAtLabel}</td>
       <td>${formatMoney(vm.openingCashActual)}</td>
@@ -2414,7 +2477,7 @@ function renderShiftHistoryCard(shift) {
 
   return `
     <div class="dashboard-shift-card" data-view-shift="${shift.shiftId}">
-      <span class="dashboard-shift-card-worker">${escapeHtml(vm.workerName)} · <span class="status-pill ${vm.statusClass}">${vm.statusLabel}</span></span>
+      <span class="dashboard-shift-card-worker">${escapeHtml(vm.workerName)} · <span class="status-pill ${vm.statusClass}">${vm.statusLabel}</span> ${vm.closeBadge}</span>
       <div class="dashboard-shift-card-row"><span>Opened</span><span>${vm.openedAtLabel}</span></div>
       <div class="dashboard-shift-card-row"><span>Closed</span><span>${vm.closedAtLabel}</span></div>
       <div class="dashboard-shift-card-row"><span>Opening cash</span><span>${formatMoney(vm.openingCashActual)}</span></div>
@@ -2510,8 +2573,10 @@ async function openShiftDetail(shiftId) {
 
 function renderShiftDetailBody(detail) {
   const variance = Number(detail.cashVariance || 0);
-  const varianceLabel =
-    variance === 0 ? "Matches" : `${variance > 0 ? "Over" : "Short"} ${formatMoney(Math.abs(variance))}`;
+  const wasForced = Boolean(detail.autoClosed || detail.forceClosed);
+  const varianceLabel = wasForced
+    ? "Not counted"
+    : variance === 0 ? "Matches" : `${variance > 0 ? "Over" : "Short"} ${formatMoney(Math.abs(variance))}`;
 
   const ordersHtml = detail.orders.length
     ? detail.orders
@@ -2559,6 +2624,13 @@ function renderShiftDetailBody(detail) {
         <p class="section-kicker">Shift · ${escapeHtml(detail.status === "open" ? "Open" : "Closed")}</p>
         <h2>${escapeHtml(detail.workerName)}</h2>
         <span>${formatDateTime(detail.openedAt)} – ${detail.closedAt ? formatDateTime(detail.closedAt) : "still open"}</span>
+        ${
+          detail.autoClosed
+            ? `<span class="status-pill status-preparing">Auto-closed · cash not counted</span>`
+            : detail.forceClosed
+              ? `<span class="status-pill status-preparing">Closed with the day · cash not counted</span>`
+              : ""
+        }
       </div>
     </div>
 
