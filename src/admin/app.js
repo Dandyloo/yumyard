@@ -22,6 +22,7 @@ import {
   createCategory,
   updateCategory,
   setCategoryActive,
+  deleteCategory,
   reorderCategories,
   createMenuItem,
   updateMenuItem,
@@ -93,6 +94,7 @@ const state = {
     newCategoryName: "",
     editingCategoryId: null,
     editingCategoryName: "",
+    confirmingDeleteCategoryId: null,
     isAddingItem: false,
     newItem: { name: "", categoryId: "", basePrice: "", requiresProtein: false },
     editingItemId: null,
@@ -842,6 +844,31 @@ function renderCategoriesPanel() {
         `;
       }
 
+      if (state.menu.confirmingDeleteCategoryId === category.id) {
+        const liveItemCount = state.menu.items.filter(
+          (item) => item.categoryId === category.id && !item.isArchived,
+        ).length;
+
+        return `
+          <div class="menu-item-card">
+            <div class="menu-item-edit-form">
+              <strong>Delete "${escapeHtml(category.name)}"?</strong>
+              ${
+                liveItemCount > 0
+                  ? `<p class="menu-item-category-tag">This category still has ${liveItemCount} item${liveItemCount === 1 ? "" : "s"}. Move them to another category or archive them first, then delete.</p>`
+                  : `<p class="menu-item-category-tag">This removes the category permanently. Past orders and reports are not affected.</p>`
+              }
+              <div class="menu-form-actions">
+                <button class="solid-action-button" type="button" data-confirm-delete-category="${category.id}" ${liveItemCount > 0 || state.menu.isSaving ? "disabled" : ""}>
+                  ${state.menu.isSaving ? `<span class="button-spinner"></span>` : "Yes, delete category"}
+                </button>
+                <button class="outline-action-button" type="button" data-cancel-delete-category>Cancel</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
       return `
         <div class="menu-category-row ${category.isActive ? "" : "is-inactive"}" draggable="true" data-category-row="${category.id}">
           <span class="menu-drag-handle" aria-hidden="true">⋮⋮</span>
@@ -854,6 +881,7 @@ function renderCategoriesPanel() {
             ${category.isActive ? "Active" : "Inactive"}
           </button>
           <button class="menu-icon-button" type="button" data-edit-category="${category.id}" title="Rename">${icon("edit")}</button>
+          <button class="menu-icon-button" type="button" data-delete-category="${category.id}" title="Delete category" aria-label="Delete category">${icon("close")}</button>
         </div>
       `;
     })
@@ -1142,6 +1170,7 @@ async function runMenuMutation(action) {
     state.menu.isAddingCategory = false;
     state.menu.newCategoryName = "";
     state.menu.editingCategoryId = null;
+    state.menu.confirmingDeleteCategoryId = null;
     state.menu.isAddingItem = false;
     state.menu.editingItemId = null;
     state.menu.addingOptionForItemId = null;
@@ -1205,6 +1234,25 @@ function bindMenuEvents() {
       const name = state.menu.editingCategoryName.trim();
       if (!name) return;
       runMenuMutation(() => updateCategory(token(), button.dataset.saveCategory, name));
+    });
+  });
+
+  root.querySelectorAll("[data-delete-category]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.menu.confirmingDeleteCategoryId = button.dataset.deleteCategory;
+      state.error = "";
+      renderAdminApp(root);
+    });
+  });
+
+  root.querySelector("[data-cancel-delete-category]")?.addEventListener("click", () => {
+    state.menu.confirmingDeleteCategoryId = null;
+    renderAdminApp(root);
+  });
+
+  root.querySelectorAll("[data-confirm-delete-category]").forEach((button) => {
+    button.addEventListener("click", () => {
+      runMenuMutation(() => deleteCategory(token(), button.dataset.confirmDeleteCategory));
     });
   });
 

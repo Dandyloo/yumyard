@@ -48,6 +48,15 @@ export async function setCategoryActive(sessionToken, categoryId, isActive) {
   throwRpcError(error);
 }
 
+export async function deleteCategory(sessionToken, categoryId) {
+  const { error } = await supabase.rpc("admin_delete_category", {
+    p_session_token: sessionToken,
+    p_category_id: categoryId,
+  });
+
+  throwRpcError(error);
+}
+
 export async function reorderCategories(sessionToken, categoryIds) {
   const { error } = await supabase.rpc("admin_reorder_categories", {
     p_session_token: sessionToken,

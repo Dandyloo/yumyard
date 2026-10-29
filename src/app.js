@@ -57,6 +57,7 @@ const state = {
   activeCategoryId: null, // Will be set to first category after load
   cart: [],
   activeOrders: [],
+  ordersFilter: "all",
   checkout: createCheckoutState(),
   isCategoryRailOpen: false,
   isCartSheetOpen: false,
@@ -500,11 +501,6 @@ function renderClosingShiftScreen() {
         <div class="shift-intro">
           <h2>Confirm totals and cash</h2>
           <p>Verify the recorded totals and count the physical cash before closing your shift.</p>
-          ${
-            Number(preview.carry_over_order_count || 0) > 0
-              ? `<p><strong>${Number(preview.carry_over_order_count)} active order${Number(preview.carry_over_order_count) === 1 ? "" : "s"}</strong> will stay open for the other worker${Number(preview.other_open_shift_count || 0) === 1 ? "" : "s"} still on shift.</p>`
-              : ""
-          }
         </div>
 
         <div class="closing-summary-grid">
@@ -543,8 +539,8 @@ function renderClosingShiftScreen() {
           openOrders.length
             ? `
               <div class="form-alert error-alert close-shift-blocked-banner">
-                <strong>Cannot close the last open shift yet.</strong>
-                <span>${openOrders.length} active order${openOrders.length === 1 ? " is" : "s are"} still open. Complete, cancel, or otherwise resolve ${openOrders.length === 1 ? "it" : "them"} on the Orders screen before closing.</span>
+                <strong>You still have active orders.</strong>
+                <span>${openOrders.length} of your order${openOrders.length === 1 ? " is" : "s are"} still open. Complete or cancel ${openOrders.length === 1 ? "it" : "them"} on the Orders screen before closing your shift.</span>
               </div>
 
               <div class="handover-order-list">
@@ -1073,6 +1069,12 @@ function renderCartItem(item) {
 }
 
 function renderOrdersWorkspace() {
+  const filter = state.ordersFilter;
+  const visibleOrders =
+    filter === "all"
+      ? state.activeOrders
+      : state.activeOrders.filter((order) => order.status === filter);
+
   return `
     <main class="orders-workspace">
       <div class="orders-header">
@@ -1087,7 +1089,7 @@ function renderOrdersWorkspace() {
         </button>
       </div>
 
-      <div class="order-status-summary">
+      <div class="order-status-summary" role="group" aria-label="Filter orders by status">
         ${renderOrderStatusSummary("confirmed", "Confirmed")}
         ${renderOrderStatusSummary("preparing", "Preparing")}
         ${renderOrderStatusSummary("ready", "Ready")}
@@ -1096,13 +1098,44 @@ function renderOrdersWorkspace() {
       </div>
 
       ${
-        state.activeOrders.length
-          ? `<section class="orders-list">${state.activeOrders.map((order) => renderActiveOrderCard(order)).join("")}</section>`
+        filter !== "all" && state.activeOrders.length
+          ? `
+            <div class="orders-filter-note">
+              <span>Showing <strong>${escapeHtml(formatOrderStatus(filter))}</strong> orders only</span>
+              <button class="outline-action-button" type="button" data-orders-filter="all">Show all</button>
+            </div>
+          `
+          : ""
+      }
+
+      ${
+        visibleOrders.length
+          ? `<section class="orders-list">
+              <div class="orders-list-head" aria-hidden="true">
+                <span>Order</span>
+                <span>Type</span>
+                <span>Customer</span>
+                <span>Payment</span>
+                <span>Total</span>
+                <span>Status</span>
+                <span></span>
+              </div>
+              ${visibleOrders.map((order) => renderActiveOrderCard(order)).join("")}
+            </section>`
+          : state.activeOrders.length
+            ? `
+            <section class="orders-empty">
+              <div class="empty-outline-icon">${icon("check")}</div>
+              <h2>No ${escapeHtml(formatOrderStatus(filter).toLowerCase())} orders</h2>
+              <p>Nothing is in this stage right now.</p>
+              <button class="outline-action-button" type="button" data-orders-filter="all">Show all orders</button>
+            </section>
+          `
           : `
             <section class="orders-empty">
               <div class="empty-outline-icon">${icon("check")}</div>
               <h2>No active orders</h2>
-              <p>Active orders from every worker on shift will appear here.</p>
+              <p>Orders you create will appear here until they are completed or cancelled.</p>
               <button class="new-order-button" type="button" data-go-pos>
                 ${icon("add")}
                 <span>Create order</span>
@@ -1119,12 +1152,21 @@ function renderOrderStatusSummary(status, label) {
     (order) => order.status === status,
   ).length;
 
+  const isActive = state.ordersFilter === status;
+
   return `
-    <div class="status-summary-item">
-      <span class="status-dot status-dot-${status}"></span>
-      <span>${label}</span>
+    <button
+      class="status-summary-item ${isActive ? "is-active" : ""} ${count === 0 ? "is-empty" : ""}"
+      type="button"
+      data-orders-filter="${status}"
+      aria-pressed="${isActive}"
+    >
+      <span class="status-summary-label">
+        <span class="status-dot status-dot-${status}"></span>
+        <span>${label}</span>
+      </span>
       <strong>${count}</strong>
-    </div>
+    </button>
   `;
 }
 
@@ -1132,54 +1174,37 @@ function renderActiveOrderCard(order) {
   const nextAction = getNextOrderAction(order);
 
   return `
-    <article class="active-order-card">
-      <div class="active-order-head">
-        <div>
-          <span class="order-reference">${escapeHtml(order.order_number)}</span>
-          <h2>${formatMoney(order.total)}</h2>
-        </div>
-        <span class="status-pill status-${escapeHtml(order.status)}">${escapeHtml(formatOrderStatus(order.status))}</span>
+    <article class="active-order-row">
+      <div class="ao-order">
+        <strong class="ao-number">${escapeHtml(order.order_number)}</strong>
+        <small>${escapeHtml(formatOrderSource(order.source))}</small>
       </div>
 
-      <div class="active-order-meta">
-        <span>${getFulfillmentIcon(order.fulfillment_type)} ${escapeHtml(formatFulfillment(order.fulfillment_type))}</span>
-        <span class="${order.payment_status === "paid" ? "paid-text" : "unpaid-text"}">
-          ${escapeHtml(formatPaymentStatus(order.payment_status))}
-        </span>
-        <span>${escapeHtml(formatOrderSource(order.source))}</span>
+      <span class="ao-status status-pill status-${escapeHtml(order.status)}">${escapeHtml(formatOrderStatus(order.status))}</span>
+
+      <span class="ao-type meta-chip">${getFulfillmentIcon(order.fulfillment_type)} ${escapeHtml(formatFulfillment(order.fulfillment_type))}</span>
+
+      <strong class="ao-total">${formatMoney(order.total)}</strong>
+
+      <div class="ao-payment">
+        <span class="order-payment-tag is-${escapeHtml(order.payment_status)}">${escapeHtml(formatPaymentStatus(order.payment_status))}</span>
+        <small>Paid ${formatMoney(order.amount_paid)} · Balance ${formatMoney(order.balance_due)}</small>
       </div>
 
-      <div class="active-order-summary">
-        <p><span>Paid</span><strong>${formatMoney(order.amount_paid)}</strong></p>
-        <p><span>Balance</span><strong>${formatMoney(order.balance_due)}</strong></p>
+      <div class="ao-customer ${order.customer_name || order.customer_phone || order.delivery_address ? "" : "is-empty"}">
+        ${
+          order.customer_name || order.customer_phone
+            ? `<span class="ao-customer-name">${icon("user")} <span>${escapeHtml(order.customer_name || "Customer")}${order.customer_phone ? ` · ${escapeHtml(order.customer_phone)}` : ""}</span></span>`
+            : `<span class="ao-customer-name is-muted">No customer details</span>`
+        }
+        ${
+          order.delivery_address
+            ? `<span class="ao-customer-line">${icon("delivery")} <span>${escapeHtml(order.delivery_address)}</span></span>`
+            : ""
+        }
       </div>
 
-      ${
-        order.customer_name || order.customer_phone || order.delivery_address
-          ? `
-            <div class="order-customer-details">
-              ${
-                order.customer_name || order.customer_phone
-                  ? `<p>${icon("user")} <span>${escapeHtml(order.customer_name || "Customer")}${order.customer_phone ? ` · ${escapeHtml(order.customer_phone)}` : ""}</span></p>`
-                  : ""
-              }
-              ${
-                order.delivery_address
-                  ? `<p>${icon("delivery")} <span>${escapeHtml(order.delivery_address)}</span></p>`
-                  : ""
-              }
-            </div>
-          `
-          : ""
-      }
-
-      ${
-        order.handover_note
-          ? `<p class="active-handover-note">${escapeHtml(order.handover_note)}</p>`
-          : ""
-      }
-
-      <div class="active-order-actions">
+      <div class="active-order-actions ao-actions">
         <button class="outline-action-button" type="button" data-view-order="${order.order_id}">
           ${icon("receipt")}
           <span>Details</span>
@@ -2052,6 +2077,15 @@ function bindCartEvents() {
 
 function bindOrderEvents() {
   const root = state.root;
+
+  root.querySelectorAll("[data-orders-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const next = button.dataset.ordersFilter;
+      state.ordersFilter =
+        next === "all" || state.ordersFilter === next ? "all" : next;
+      renderApp(root);
+    });
+  });
 
   root.querySelectorAll("[data-update-order]").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -3045,12 +3079,6 @@ function renderOrderDetailsView(order) {
           : ""
       }
 
-      ${
-        order.handover_note
-          ? `<p class="receipt-detail">${icon("orders")} <span>${escapeHtml(order.handover_note)}</span></p>`
-          : ""
-      }
-
       <div class="receipt-actions">
         <button class="outline-action-button" type="button" data-print-receipt>
           ${icon("receipt")}
@@ -3288,6 +3316,7 @@ function resetOperationalState() {
   state.categories = [];
   state.menuItems = [];
   state.activeOrders = [];
+  state.ordersFilter = "all";
   state.cart = [];
   state.activeCategoryId = null;
   state.isCategoryRailOpen = false;
