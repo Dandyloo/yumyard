@@ -20,7 +20,8 @@ import {
 } from "./services/auth-service.js";
 import { APP_CONFIG } from "./lib/config.js";
 import { getPosMenu } from "./services/menu-service.js";
-import { getPosWorkerDashboard } from "./services/pos-dashboard-service.js";
+import { getPosWorkerDashboard, getPosDayProductSales } from "./services/pos-dashboard-service.js";
+import { renderProductSalesList } from "./lib/product-sales.js";
 import { getPosOrderReceipt } from "./services/receipt-service.js";
 import { openReceiptPreview } from "./lib/receipt.js";
 import {
@@ -52,6 +53,7 @@ const state = {
   shiftClosePreview: null,
   shiftOpeningContext: null,
   closeDayPreview: null,
+  closeDayProductSales: null,
   categories: [],
   menuItems: [],
   activeCategoryId: null, // Will be set to first category after load
@@ -687,6 +689,20 @@ function renderCloseDayScreen() {
             <strong>${formatMoney(preview.total_sales)}</strong>
           </div>
         </div>
+
+        ${
+          state.closeDayProductSales
+            ? `
+              <section class="ps-closeday">
+                <div class="ps-closeday-head">
+                  <h2>Sold today</h2>
+                  <span>${state.closeDayProductSales.totalUnits} item${state.closeDayProductSales.totalUnits === 1 ? "" : "s"} across ${state.closeDayProductSales.ordersCount} order${state.closeDayProductSales.ordersCount === 1 ? "" : "s"}</span>
+                </div>
+                ${renderProductSalesList(state.closeDayProductSales, { emptyText: "Nothing sold since the last day close." })}
+              </section>
+            `
+            : ""
+        }
 
         ${
           preview.last_shift_worker_name
@@ -2339,9 +2355,14 @@ async function openCloseDayFlow() {
     state.error = "";
     renderApp(state.root);
 
-    const preview = await getCloseDayPreview(state.session.sessionToken);
+    const [preview, productSales] = await Promise.all([
+      getCloseDayPreview(state.session.sessionToken),
+      // The sales list is a nice-to-have: never block closing the day on it.
+      getPosDayProductSales(state.session.sessionToken).catch(() => null),
+    ]);
 
     state.closeDayPreview = preview;
+    state.closeDayProductSales = productSales;
     state.view = "close-day";
     state.isLoading = false;
     renderApp(state.root);
@@ -3313,6 +3334,7 @@ function resetOperationalState() {
   state.shiftClosePreview = null;
   state.shiftOpeningContext = null;
   state.closeDayPreview = null;
+  state.closeDayProductSales = null;
   state.categories = [];
   state.menuItems = [];
   state.activeOrders = [];

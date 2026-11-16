@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase.js";
+import { normalizeProductSales } from "../lib/product-sales.js";
 
 function throwRpcError(error) {
   if (error) {
@@ -19,4 +20,17 @@ export async function getPosWorkerDashboard(sessionToken, scope = "shift") {
   throwRpcError(error);
 
   return data;
+}
+
+/**
+ * Packs/products sold since the last day close (what the Close Day screen shows).
+ */
+export async function getPosDayProductSales(sessionToken) {
+  const { data, error } = await supabase.rpc("pos_day_product_sales", {
+    p_session_token: sessionToken,
+  });
+
+  throwRpcError(error);
+
+  return normalizeProductSales(data);
 }

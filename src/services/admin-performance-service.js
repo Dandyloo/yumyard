@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase.js";
+import { normalizeProductSales } from "../lib/product-sales.js";
 
 function throwRpcError(error) {
   if (error) {
@@ -25,6 +26,21 @@ export async function getAdminItemSales(sessionToken, { dateFrom, dateTo } = {})
     revenue: Number(row.revenue),
     orderCount: Number(row.order_count),
   }));
+}
+
+/**
+ * How many of each product sold on one calendar day (Africa/Accra).
+ * date: "YYYY-MM-DD"; omit for today. Works for any past day.
+ */
+export async function getAdminDailyProductSales(sessionToken, date = null) {
+  const { data, error } = await supabase.rpc("admin_daily_product_sales", {
+    p_session_token: sessionToken,
+    p_date: date || null,
+  });
+
+  throwRpcError(error);
+
+  return normalizeProductSales(data);
 }
 
 export async function getAdminCategorySales(sessionToken, { dateFrom, dateTo } = {}) {

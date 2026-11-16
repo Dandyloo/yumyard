@@ -43,7 +43,9 @@ import {
 import { getAdminOrderHistory, getAdminOrderDetail } from "../services/admin-orders-service.js";
 import { getAdminShiftHistory, getAdminShiftDetail } from "../services/admin-shifts-service.js";
 import { getAdminRevenueSummary, getAdminRevenueTrend } from "../services/admin-reports-service.js";
-import { getAdminItemSales, getAdminCategorySales } from "../services/admin-performance-service.js";
+import { getAdminItemSales, getAdminCategorySales, getAdminDailyProductSales } from "../services/admin-performance-service.js";
+import { renderProductSalesList } from "../lib/product-sales.js";
+import { renderBarChart, renderChartStats } from "../lib/charts.js";
 import { APP_CONFIG } from "../lib/config.js";
 
 const SIDEBAR_COLLAPSE_STORAGE_KEY = "yumyard-admin-sidebar-collapsed";
@@ -58,6 +60,7 @@ let draggedCategoryId = null;
 // need reshaping each time a new one is built, just enabled: true.
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: "grid", enabled: true },
+  { key: "daily", label: "Daily Sales", icon: "receipt", enabled: true },
   { key: "reports", label: "Reports", icon: "barChart", enabled: true },
   { key: "menu", label: "Menu", icon: "list", enabled: true },
   { key: "staff", label: "Staff", icon: "user", enabled: true },
@@ -156,6 +159,12 @@ const state = {
     trendGranularity: "day",
     trend: [],
   },
+  dailySales: {
+    isLoading: false,
+    hasLoaded: false,
+    date: defaultDateTo(),
+    data: null,
+  },
   performance: {
     isLoading: false,
     hasLoaded: false,
@@ -222,6 +231,10 @@ function renderScreen() {
 
   if (state.view === "login") {
     return renderLoginScreen();
+  }
+
+  if (state.view === "dashboard" && state.activeNav === "daily") {
+    return renderAdminShell(renderDailySalesContent());
   }
 
   if (state.view === "dashboard" && state.activeNav === "reports") {
@@ -416,7 +429,9 @@ function renderAdminShell(contentHtml) {
             ? state.shifts.isLoading
             : state.activeNav === "reports"
               ? state.reports.isLoading
-              : state.activeNav === "performance"
+              : state.activeNav === "daily"
+                ? state.dailySales.isLoading
+                : state.activeNav === "performance"
                 ? state.performance.isLoading
                 : state.isLoadingDashboard;
 
@@ -627,51 +642,36 @@ function renderSalesChart() {
     `;
   }
 
-  const chartWidth = 720;
-  const chartHeight = 190;
-  const axisHeight = 22;
-  const barSlot = chartWidth / 24;
-  const barWidth = barSlot * 0.62;
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map((fraction) => {
-    const y = chartHeight - chartHeight * fraction;
-    return `<line class="chart-gridline" x1="0" y1="${y}" x2="${chartWidth}" y2="${y}" />`;
-  });
+  // Show only the trading window (first to last sale, padded by an hour) instead of all 24 hours,
+  // so the bars are wide enough to read. Hours inside the window with no sales stay as empty slots.
+  const soldHours = hours.filter((row) => row.sales > 0).map((row) => row.hour);
+  const firstHour = Math.max(Math.min(...soldHours) - 1, 0);
+  const lastHour = Math.min(Math.max(...soldHours) + 1, 23);
+  const salesByHour = new Map(hours.map((row) => [row.hour, row.sales]));
+  const currentHour = Number(
+    new Intl.DateTimeFormat("en-GB", { hour: "numeric", hour12: false, timeZone: "Africa/Accra" }).format(new Date()),
+  );
+  const peakHour = hours.find((row) => row.sales === maxSales);
+  const totalSales = hours.reduce((sum, row) => sum + row.sales, 0);
+  const labelStep = lastHour - firstHour >= 12 ? 2 : 1;
 
-  const bars = hours
-    .map((row) => {
-      const barHeight =
-        maxSales > 0 ? Math.max((row.sales / maxSales) * chartHeight, row.sales > 0 ? 3 : 0) : 0;
-      const x = row.hour * barSlot + (barSlot - barWidth) / 2;
-      const y = chartHeight - barHeight;
-      const isPeak = row.sales === maxSales && maxSales > 0;
-      const showLabel = row.hour % 3 === 0;
-
-      return `
-        <g>
-          <title>${formatHourLabel(row.hour)}: ${formatMoney(row.sales)}</title>
-          <rect
-            class="chart-bar ${isPeak ? "is-peak" : ""}"
-            x="${x.toFixed(1)}"
-            y="${y.toFixed(1)}"
-            width="${barWidth.toFixed(1)}"
-            height="${barHeight.toFixed(1)}"
-            rx="2"
-          />
-          ${
-            showLabel
-              ? `<text class="chart-axis-label" x="${(row.hour * barSlot + barSlot / 2).toFixed(1)}" y="${chartHeight + 14}" text-anchor="middle">${formatHourShort(row.hour)}</text>`
-              : ""
-          }
-        </g>
-      `;
-    })
-    .join("");
+  const buckets = [];
+  for (let hour = firstHour; hour <= lastHour; hour += 1) {
+    buckets.push({
+      label: formatHourShort(hour),
+      tipTitle: `${formatHourLabel(hour)} - ${formatHourLabel((hour + 1) % 24)}`,
+      value: salesByHour.get(hour) || 0,
+      showLabel: (hour - firstHour) % labelStep === 0,
+      isCurrent: hour === currentHour,
+    });
+  }
 
   return `
-    <svg class="dashboard-bar-chart" viewBox="0 0 ${chartWidth} ${chartHeight + axisHeight}" role="img" aria-label="Sales by hour today">
-      ${gridLines.join("")}
-      ${bars}
-    </svg>
+    ${renderChartStats([
+      { label: "Busiest hour", value: formatHourLabel(peakHour.hour), hint: formatMoney(peakHour.sales) },
+      { label: "Sales so far", value: formatMoney(totalSales) },
+    ])}
+    ${renderBarChart(buckets, { ariaLabel: "Sales by hour today", averageLabel: "Avg/hr" })}
   `;
 }
 
@@ -2850,55 +2850,30 @@ function renderTrendChart() {
     `;
   }
 
-  const chartWidth = 720;
-  const chartHeight = 190;
-  const axisHeight = 22;
-  const barSlot = chartWidth / rows.length;
-  const barWidth = barSlot * 0.62;
   // Daily view has up to 30 bars - labeling every one would collide, so
   // space them out; monthly view has at most 12, so every bar gets one.
   const labelStep = granularity === "day" ? Math.ceil(rows.length / 8) : 1;
+  const unit = granularity === "day" ? "day" : "month";
+  const best = rows.find((row) => row.sales === maxSales);
+  const total = rows.reduce((sum, row) => sum + row.sales, 0);
+  const totalOrders = rows.reduce((sum, row) => sum + row.orders, 0);
 
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map((fraction) => {
-    const y = chartHeight - chartHeight * fraction;
-    return `<line class="chart-gridline" x1="0" y1="${y}" x2="${chartWidth}" y2="${y}" />`;
-  });
-
-  const bars = rows
-    .map((row, index) => {
-      const barHeight =
-        maxSales > 0 ? Math.max((row.sales / maxSales) * chartHeight, row.sales > 0 ? 3 : 0) : 0;
-      const x = index * barSlot + (barSlot - barWidth) / 2;
-      const y = chartHeight - barHeight;
-      const isPeak = row.sales === maxSales && maxSales > 0;
-      const showLabel = index % labelStep === 0;
-
-      return `
-        <g>
-          <title>${formatBucketLabel(row.bucketDate, granularity, false)}: ${formatMoney(row.sales)}</title>
-          <rect
-            class="chart-bar ${isPeak ? "is-peak" : ""}"
-            x="${x.toFixed(1)}"
-            y="${y.toFixed(1)}"
-            width="${barWidth.toFixed(1)}"
-            height="${barHeight.toFixed(1)}"
-            rx="2"
-          />
-          ${
-            showLabel
-              ? `<text class="chart-axis-label" x="${(index * barSlot + barSlot / 2).toFixed(1)}" y="${chartHeight + 14}" text-anchor="middle">${formatBucketLabel(row.bucketDate, granularity, true)}</text>`
-              : ""
-          }
-        </g>
-      `;
-    })
-    .join("");
+  const buckets = rows.map((row, index) => ({
+    label: formatBucketLabel(row.bucketDate, granularity, true),
+    tipTitle: formatBucketLabel(row.bucketDate, granularity, false),
+    tipLines: [`${row.orders} order${row.orders === 1 ? "" : "s"}`],
+    value: row.sales,
+    showLabel: index % labelStep === 0,
+    isCurrent: index === rows.length - 1,
+  }));
 
   return `
-    <svg class="dashboard-bar-chart" viewBox="0 0 ${chartWidth} ${chartHeight + axisHeight}" role="img" aria-label="Sales trend">
-      ${gridLines.join("")}
-      ${bars}
-    </svg>
+    ${renderChartStats([
+      { label: `Best ${unit}`, value: formatBucketLabel(best.bucketDate, granularity, false), hint: formatMoney(best.sales) },
+      { label: `Average per ${unit}`, value: formatMoney(total / rows.length) },
+      { label: "Total", value: formatMoney(total), hint: `${totalOrders} order${totalOrders === 1 ? "" : "s"}` },
+    ])}
+    ${renderBarChart(buckets, { ariaLabel: "Sales trend", averageLabel: `Avg/${unit}` })}
   `;
 }
 
@@ -2954,6 +2929,196 @@ function bindReportsEvents() {
       state.reports.trendGranularity = granularity;
       loadReportsData();
     });
+  });
+}
+
+// --- Daily sales: how many of each product sold on a chosen day -------
+
+function shiftIsoDate(isoDate, days) {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatLongDate(isoDate) {
+  return new Intl.DateTimeFormat("en-GH", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${isoDate}T00:00:00Z`));
+}
+
+function renderDailySalesContent() {
+  const daily = state.dailySales;
+  const today = defaultDateTo();
+  const data = daily.data;
+  const isToday = daily.date >= today;
+
+  const dateBar = `
+    <div class="ps-datebar">
+      <button class="outline-action-button" type="button" data-daily-prev ${daily.isLoading ? "disabled" : ""}>
+        ${icon("chevronLeft")}<span>Previous day</span>
+      </button>
+      <label class="ps-datebar-picker">
+        <span class="sr-only">Pick a date</span>
+        <input type="date" data-daily-date value="${daily.date}" max="${today}" />
+      </label>
+      <button class="outline-action-button" type="button" data-daily-next ${isToday || daily.isLoading ? "disabled" : ""}>
+        <span>Next day</span>${icon("arrowRight")}
+      </button>
+      ${isToday ? "" : `<button class="tertiary-action-button text-button" type="button" data-daily-today>Jump to today</button>`}
+    </div>
+  `;
+
+  let body;
+
+  if (!data || (daily.isLoading && !daily.hasLoaded)) {
+    body = `<div class="dashboard-chart-empty"><span class="boot-spinner"></span></div>`;
+  } else {
+    body = `
+      <div class="dashboard-summary-grid ${daily.isLoading ? "is-refreshing" : ""}">
+        <div class="dashboard-summary-card highlight">
+          <span class="dashboard-summary-icon">${icon("receipt")}</span>
+          <div class="dashboard-summary-card-body">
+            <span>Total sales</span>
+            <strong>${formatMoney(data.totalSales)}</strong>
+          </div>
+        </div>
+        <div class="dashboard-summary-card">
+          <span class="dashboard-summary-icon">${icon("orders")}</span>
+          <div class="dashboard-summary-card-body">
+            <span>Orders</span>
+            <strong>${data.ordersCount}</strong>
+          </div>
+        </div>
+        <div class="dashboard-summary-card">
+          <span class="dashboard-summary-icon">${icon("grid")}</span>
+          <div class="dashboard-summary-card-body">
+            <span>Items sold</span>
+            <strong>${data.totalUnits}</strong>
+          </div>
+        </div>
+        <div class="dashboard-summary-card ${data.cancelledCount > 0 ? "danger" : ""}">
+          <span class="dashboard-summary-icon">${icon("ban")}</span>
+          <div class="dashboard-summary-card-body">
+            <span>Cancelled</span>
+            <strong>${data.cancelledCount}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="ps-list-wrap ${daily.isLoading ? "is-refreshing" : ""}">
+        ${renderProductSalesList(data, { emptyText: "Nothing was sold on this day." })}
+      </div>
+    `;
+  }
+
+  return `
+    <main class="admin-dashboard">
+      <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+          <div>
+            <p class="section-kicker">${isToday ? "Today so far" : "Past day"}</p>
+            <h2>${escapeHtml(formatLongDate(daily.date))}</h2>
+          </div>
+          ${
+            data && data.items.length
+              ? `<button class="outline-action-button" type="button" data-daily-copy>${icon("receipt")}<span>Copy summary</span></button>`
+              : ""
+          }
+        </div>
+
+        ${dateBar}
+        ${body}
+      </section>
+    </main>
+  `;
+}
+
+async function loadDailySalesData() {
+  const requestedDate = state.dailySales.date;
+
+  try {
+    state.dailySales.isLoading = true;
+    state.error = "";
+    renderAdminApp(state.root);
+
+    const data = await getAdminDailyProductSales(state.session.sessionToken, requestedDate);
+
+    // Ignore a slow response if the owner has already moved to another day.
+    if (requestedDate !== state.dailySales.date) return;
+
+    state.dailySales.data = data;
+    state.dailySales.hasLoaded = true;
+  } catch (error) {
+    state.error = toUserMessage(error);
+  } finally {
+    if (requestedDate === state.dailySales.date) {
+      state.dailySales.isLoading = false;
+      renderAdminApp(state.root);
+    }
+  }
+}
+
+function setDailySalesDate(isoDate) {
+  const today = defaultDateTo();
+  if (!isoDate) return;
+  state.dailySales.date = isoDate > today ? today : isoDate;
+  loadDailySalesData();
+}
+
+function buildDailySummaryText(data, isoDate) {
+  const lines = [`Yum Yard - ${formatLongDate(isoDate)}`, ""];
+  let currentCategory = null;
+
+  for (const item of data.items) {
+    if (item.categoryName !== currentCategory) {
+      currentCategory = item.categoryName;
+      lines.push(`${currentCategory}:`);
+    }
+    const proteins = item.proteins.length
+      ? ` (${item.proteins.map((protein) => `${protein.name} ${protein.quantity}`).join(", ")})`
+      : "";
+    lines.push(`  ${item.itemName}: ${item.quantity}${proteins}`);
+  }
+
+  lines.push("", `Orders: ${data.ordersCount}`, `Total sales: ${formatMoney(data.totalSales)}`);
+  return lines.join("\n");
+}
+
+function bindDailySalesEvents() {
+  const root = state.root;
+
+  root.querySelector("[data-daily-prev]")?.addEventListener("click", () => {
+    setDailySalesDate(shiftIsoDate(state.dailySales.date, -1));
+  });
+
+  root.querySelector("[data-daily-next]")?.addEventListener("click", () => {
+    setDailySalesDate(shiftIsoDate(state.dailySales.date, 1));
+  });
+
+  root.querySelector("[data-daily-today]")?.addEventListener("click", () => {
+    setDailySalesDate(defaultDateTo());
+  });
+
+  root.querySelector("[data-daily-date]")?.addEventListener("change", (event) => {
+    setDailySalesDate(event.target.value);
+  });
+
+  root.querySelector("[data-daily-copy]")?.addEventListener("click", async () => {
+    const data = state.dailySales.data;
+    if (!data) return;
+
+    try {
+      await navigator.clipboard.writeText(buildDailySummaryText(data, state.dailySales.date));
+      state.notice = "Summary copied. Paste it into WhatsApp or a note.";
+    } catch {
+      state.notice = "";
+      state.error = "Couldn't copy automatically. Please try again.";
+    }
+    renderAdminApp(root);
   });
 }
 
@@ -3214,6 +3379,8 @@ function bindScreenEvents() {
         loadShiftsData();
       } else if (state.activeNav === "reports") {
         loadReportsData();
+      } else if (state.activeNav === "daily") {
+        loadDailySalesData();
       } else if (state.activeNav === "performance") {
         loadPerformanceData();
       } else {
@@ -3249,6 +3416,7 @@ function bindScreenEvents() {
   bindShiftsEvents();
   bindReportsEvents();
   bindPerformanceEvents();
+  bindDailySalesEvents();
 }
 
 function selectNav(navKey) {
@@ -3280,6 +3448,12 @@ function selectNav(navKey) {
 
   if (navKey === "reports" && !state.reports.hasLoaded) {
     loadReportsData();
+  }
+
+  if (navKey === "daily") {
+    // Always refetch: "today" keeps changing, and a new day may have started.
+    if (state.dailySales.date > defaultDateTo()) state.dailySales.date = defaultDateTo();
+    loadDailySalesData();
   }
 
   if (navKey === "performance" && !state.performance.hasLoaded) {
